@@ -30,7 +30,7 @@ class MultiFunTestSuite extends FunSuite {
     def div(in: Operands): Double = in._1 / in._2.doubleValue()
     val functions = List[Operands => Double](add, sub, mul, div)
 
-    val complexFun = MultiFunSeq(functions)
+    val complexFun = FunN(functions)
     def testComplexFun(in: Operands) = complexFun(in)
   }
 
@@ -41,7 +41,7 @@ class MultiFunTestSuite extends FunSuite {
     def div(in: Operands): Double = throw new Exception
     val functions = List[Operands => Double](add, sub, mul, div)
 
-    val complexFun = MultiFunSeq(functions)
+    val complexFun = FunN(functions)
     def testComplexFun(in: Operands) = complexFun.apply(in)
   }
 
@@ -52,7 +52,7 @@ class MultiFunTestSuite extends FunSuite {
     def div(in: Operands): Try[Double] = Try(if (in._2 == 0) throw new Exception else in._1 / in._2.doubleValue())
     val functions = List[Operands => Try[Double]](add, sub, mul, div)
 
-    val complexFun = MultiFunSeq(functions)
+    val complexFun = FunN(functions)
     def testComplexFun(in: Operands) = complexFun.apply(in)
   }
 
@@ -63,7 +63,7 @@ class MultiFunTestSuite extends FunSuite {
     def div(in: Operands): Future[Double] = Future { Thread.sleep(200); in._1 / in._2.doubleValue() }
     val functions = List[Operands => Future[Double]](add, sub, mul, div)
 
-    val complexFun = MultiFunSeq(functions)
+    val complexFun = FunN(functions)
     def testComplexFun(in: Operands) = complexFun.apply(in)
 
   }
@@ -79,21 +79,21 @@ class MultiFunTestSuite extends FunSuite {
 
   }
 
-  test("MultiFunSeq no functions") {
+  test("FunN no functions") {
     new TestSetNoException {
 
       val input = (1, 2)
       val expect = List()
 
-      val noFun = MultiFunSeq(Nil)
-      def testNoFun(in: Operands) = noFun.apply(in)
+      val noFun = FunN(Nil)
+      def testNoFun(in: Operands) = noFun(in)
 
       val actual = testNoFun(input)
       assert(actual === expect)
     }
   }
 
-  test("MultiFunSeq normal case") {
+  test("FunN normal case") {
     new TestSetNoException {
 
       val input = (1, 2)
@@ -103,7 +103,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunSeq normal case infinitty") {
+  test("FunN normal case infinitty") {
     new TestSetNoException {
 
       val input = (1, 0)
@@ -113,7 +113,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunSeq Exception thrown") {
+  test("FunN Exception thrown") {
     new TestSetWithException {
 
       val input = (1, 2)
@@ -122,7 +122,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunSeq with Try Success") {
+  test("FunN with Try Success") {
     new TestSetWithTry {
 
       val input = (1, 2)
@@ -133,7 +133,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunSeq with Try Failure") {
+  test("FunN with Try Failure") {
     new TestSetWithTry {
 
       val input = (1, 0)
@@ -144,7 +144,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunSeq with Future") {
+  test("FunN with Future") {
     new TestSetWithFutures {
 
       val input = (1, 2)
@@ -155,13 +155,13 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunMap factory with map and single input") {
+  test("FunN factory with map and single input") {
     new TestMapNoException {
 
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
 
-      val complexFun = MultiFunMap(functionsMap)
+      val complexFun = FunN(functionsMap)
       def testComplexFun(in: Operands) = complexFun.applyToMap(in)
 
       val actual = testComplexFun(input)
@@ -169,7 +169,7 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFunMap with map and multiple inputs") {
+  test("FunN factory with map and multiple inputs") {
     new TestMapNoException {
 
       val input1 = (1, 2)
@@ -179,7 +179,7 @@ class MultiFunTestSuite extends FunSuite {
       val expect2 = Map("add" -> 1.0, "sub" -> 1.0, "mul" -> 0.0, "div" -> Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val complexFun = MultiFunMap(functionsMap)
+      val complexFun = FunN(functionsMap)
       def testComplexFun(in: Operands) = complexFun.applyToMap(in)
 
       val actual = inputs.map(testComplexFun(_))
@@ -187,20 +187,103 @@ class MultiFunTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun with MultiFun associativity") {
+  test("FunN factory with some default names") {
+    new TestMapNoException {
+
+      val input = (1, 2)
+      val expect = Map("add" -> 3.0, "Fun$01" -> -1.0, "Fun$02" -> 2.0, "Fun$03" -> 0.5)
+
+      val complexFun = FunN(functions, List("add"))
+      def testComplexFun(in: Operands) = complexFun.applyToMap(in)
+
+      val actual = testComplexFun(input)
+      assert(actual === expect)
+    }
+  }
+
+  test("FunN factory with more names than methods") {
+    new TestMapNoException {
+
+      val input = (1, 2)
+      val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
+
+      val complexFun = FunN(functions, List("add", "sub", "mul", "div", "log", "sqr"))
+      def testComplexFun(in: Operands) = complexFun.applyToMap(in)
+
+      val actual = testComplexFun(input)
+      assert(actual === expect)
+    }
+  }
+
+  test("MultiFun associativity") {
 
     def add(in: Operands): Double = in._1 + in._2.doubleValue()
     def sub(in: Operands): Double = in._1 - in._2.doubleValue()
     def mul(in: Operands): Double = in._1 * in._2.doubleValue()
 
-    val complexFun11 = MultiFunSeq(List[Operands => Double](add, sub))
-    val complexFun12 = MultiFunSeq(List[Operands => Double](mul))
+    val complexFun11 = FunN(List[Operands => Double](add, sub))
+    val complexFun12 = FunN(List[Operands => Double](mul))
 
-    val complexFun21 = MultiFunSeq(List[Operands => Double](add))
-    val complexFun22 = MultiFunSeq(List[Operands => Double](sub, mul))
+    val complexFun21 = FunN(List[Operands => Double](add))
+    val complexFun22 = FunN(List[Operands => Double](sub, mul))
 
-    val complex1 = MultiFun(List(complexFun11, complexFun12))
-    val complex2 = MultiFun(List(complexFun21, complexFun22))
+    //    val complex1 = MultiFun(List(complexFun11, complexFun12))
+    //    val complex2 = MultiFun(List(complexFun21, complexFun22))
+    val complex1 = complexFun11 ++ complexFun12
+    val complex2 = complexFun21 ++ complexFun22
+
+    val input = (1, 2)
+    val expect = List(3.0, -1.0, 2.0)
+
+    assert(complex1(input) === complex2(input))
+    assert(complex1(input) == expect)
+  }
+
+  test("MultiFun composition map()") {
+
+    def add(in: Operands): Double = in._1 + in._2.doubleValue()
+    def sub(in: Operands): Double = in._1 - in._2.doubleValue()
+    def mkStr(f: Operands => Double): Operands => String = {
+      in: Operands => s"$in => ${f(in)}"
+    }
+
+    val expect = List("(1,2) => 3.0", "(1,2) => -1.0")
+    val complexFun = FunN(List[Operands => Double](add, sub))
+    val actual = complexFun.map(mkStr)(1, 2)
+
+    assert(actual == expect)
+
+  }
+
+  test("MultiFun composition flatMap()") {
+
+    def add(in: Operands): Double = in._1 + in._2.doubleValue()
+    def sub(in: Operands): Double = in._1 - in._2.doubleValue()
+    def mkStrFun(f: Operands => Double): MultiFun[Operands, String] = {
+      FunN[Operands, String](List[Operands => String] { in: Operands => s"$in => ${f(in)}" })
+    }
+
+    val expect = List("(1,2) => 3.0", "(1,2) => -1.0")
+    val complexFun = FunN(List[Operands => Double](add, sub))
+    val actual = complexFun.flatMap(mkStrFun)(1, 2)
+
+    assert(actual == expect)
+  }
+
+  test("MultiFun ++ associativity") {
+
+    def add(in: Operands): Double = in._1 + in._2.doubleValue()
+    def sub(in: Operands): Double = in._1 - in._2.doubleValue()
+    def mul(in: Operands): Double = in._1 * in._2.doubleValue()
+
+    val complexFun11 = FunN(List[Operands => Double](add, sub))
+    val complexFun12 = FunN(List[Operands => Double](mul))
+
+    val complexFun21 = FunN(List[Operands => Double](add))
+    val complexFun22 = FunN(List[Operands => Double](sub, mul))
+
+    val complex1 = complexFun11 ++ complexFun12
+    val complex2 = complexFun21 ++ complexFun22
 
     val input = (1, 2)
     val expect = List(3.0, -1.0, 2.0)
