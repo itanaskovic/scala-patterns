@@ -10,28 +10,33 @@ import scala.language.implicitConversions
  */
 package object multiop {
 
+  type Xop[A, B] = Operation[A, B]
+  type Ops[A, B] = Seq[Operation[A, B]]
+  type Fun[A, B] = Function1[A, B]
+
   /**
    * We define an `Operation` to be a function of A => B that also has a name
    */
-  trait Operation[-A, +B] extends Function1[A, B] {
-    protected def body: A => B
-    val name: String
-    def apply(input: A) = body(input)
-    override def toString = s"$name ${body.toString}"
+  trait Operation[-A, +B] extends Fun[A, B] {
+    val name = ANONYMOUS
+    def apply(input: A): B
+    override def toString = s"$name"
   }
 
   /**
    * The `Id` is an operation that returns the input
    */
   case class Id[A]() extends Operation[A, A] {
-    protected def body = { id: A => id }
-    val name = "Identity"
+    override val name = "Identity"
+    def apply(input: A) = input
   }
 
   /**
    * The `Op` is a concrete `Operation`
    */
-  case class Op[-A, +B](val name: String, body: A => B) extends Operation[A, B]
+  case class Op[-A, +B](override val name: String, function: A => B) extends Operation[A, B] {
+    def apply(input: A): B = function(input)
+  }
 
   /**
    * Companion object for the `Op` class
@@ -40,7 +45,7 @@ package object multiop {
     def apply[A, B](function: A => B): Op[A, B] =
       new Op[A, B](ANONYMOUS, function)
     def apply[A, B](op: Op[A, B]): Op[A, B] =
-      new Op[A, B](op.name, op.body)
+      new Op[A, B](op.name, op.function)
   }
 
   /**
@@ -59,14 +64,14 @@ package object multiop {
    * @tparam T the type of the output sequence
    * @author oliver
    */
-  case class MultiOp[A, +B](val name: String, operations: Seq[Operation[A, B]]) extends Operation[A, Seq[B]] {
+  case class MultiOp[A, +B](override val name: String, operations: Ops[A, B]) extends Operation[A, Seq[B]] {
 
-    protected def body: A => Seq[B] = { input: A => operations.map(f => f(input)) }
+    def apply(input: A): Seq[B] = operations.map(f => f(input))
 
-    def applyToMap(input: A) = operations.map(f => (f.name, f(input))).toMap
+    def applyToMap(input: A): Map[String, B] = operations.map(f => (f.name, f(input))).toMap
 
     def +[A, B](that: MultiOp[A, B]): MultiOp[A, B] =
-      MultiOp("(" + this.name + " + " + that.name + ")",
+      MultiOp(this.name, //          "(" + this.name + " + " + that.name + ")",
         (this.operations ++ that.operations).asInstanceOf[Seq[Operation[A, B]]])
 
     def map[C](g: Operation[A, B] => Operation[A, C]): MultiOp[A, C] =
@@ -84,7 +89,6 @@ package object multiop {
   object MultiOp {
 
     def apply[A, B](): MultiOp[A, B] = new MultiOp[A, B](ANONYMOUS, Nil)
-
     def apply[A, B](functions: Seq[A => B]): MultiOp[A, B] = {
       new MultiOp[A, B](ANONYMOUS, functions)
     }
@@ -96,6 +100,23 @@ package object multiop {
     def apply[A, B](functionsMap: Map[String, A => B]): MultiOp[A, B] =
       apply(functionsMap.foldLeft(List[A => B]())((acc, tup) => Op(tup._1, tup._2) :: acc))
 
+    /*
+    def apply[A, B](name: String): MultiOp[A, B] = new MultiOp[A, B](name, Nil)
+
+    def apply[A, B](functions: Seq[A => B]): MultiOp[A, B] = {
+      new MultiOp[A, B](ANONYMOUS, functions)
+    }
+
+    def apply[A, B](name: String, function: A => B): MultiOp[A, B] = {
+      new MultiOp[A, B](name, List(function))
+    }
+
+    def apply[A, B](name: String, functionsMap: Map[String, A => B]): MultiOp[A, B] =
+      new MultiOp[A, B](name, functionsMap.foldLeft(List[A => B]())((acc, tup) => Op(tup._1, tup._2) :: acc))
+
+    def apply[A, B](functionsMap: Map[String, A => B]): MultiOp[A, B] =
+      MultiOp(ANONYMOUS, functionsMap)
+*/
   }
 
   /**

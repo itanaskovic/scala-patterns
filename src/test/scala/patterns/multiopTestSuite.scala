@@ -305,9 +305,9 @@ class multiopTestSuite extends FunSuite {
     def testF1 = Op("testF1", mkStr)
     def testF2 = Op("testF2", mkStrFun2)
 
-    def add() = Op("add", { in: Operands => in._1 + in._2.doubleValue() })
-    def sub() = Op("sub", { in: Operands => in._1 - in._2.doubleValue() })
-    val mop = MultiOp("mop", List(add, sub))
+    def add = Op("add", { in: Operands => in._1 + in._2.doubleValue() })
+    def sub = Op("sub", { in: Operands => in._1 - in._2.doubleValue() })
+    val mop = MultiOp[Operands, Double]("mop", List(add, sub))
 
     def fm1 = (mop flatMap testF1) flatMap testF2
     def fm2 = mop flatMap (x => testF1(x) flatMap testF2)
@@ -336,6 +336,9 @@ class multiopTestSuite extends FunSuite {
 
     assert(actual(input) === f(x)(input))
     assert(actual(input) == expect)
+
+    println(unit)
+    println(actual)
 
   }
 
