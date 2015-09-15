@@ -10,135 +10,162 @@ import scala.language.implicitConversions
  */
 package object multiop {
 
-  type Xop[A, B] = Operation[A, B]
-  type Ops[A, B] = Seq[Operation[A, B]]
-  type Fun[A, B] = Function1[A, B]
+  type Fun[-A, +B] = A => B
+  type Funs[-A, +B] = Seq[Fun[A, B]]
 
   /**
-   * We define an `Operation` to be a function of A => B that also has a name
+   * We define an `NamedFun` to be a function of A => B that also has a name
    */
-  trait Operation[-A, +B] extends Fun[A, B] {
-    val name = ANONYMOUS
+  sealed trait NamedFun[-A, +B] extends Fun[A, B] {
+    def name: String
     def apply(input: A): B
-    override def toString = s"$name"
+    override def toString() = s"<$name>"
   }
 
   /**
-   * The `Id` is an operation that returns the input
+   * Companion for `NamedFun`
    */
-  case class Id[A]() extends Operation[A, A] {
-    override val name = "Identity"
-    def apply(input: A) = input
+  object NamedFun {
+    def apply[A, B](fname: String, function: A => B): NamedFun[A, B] = new NamedFun[A, B] {
+      val name = fname
+      def apply(input: A): B = function(input)
+    }
   }
 
   /**
-   * The `Op` is a concrete `Operation`
-   */
-  case class Op[-A, +B](override val name: String, function: A => B) extends Operation[A, B] {
-    def apply(input: A): B = function(input)
-  }
-
-  /**
-   * Companion object for the `Op` class
-   */
-  object Op {
-    def apply[A, B](function: A => B): Op[A, B] =
-      new Op[A, B](ANONYMOUS, function)
-    def apply[A, B](op: Op[A, B]): Op[A, B] =
-      new Op[A, B](op.name, op.function)
-  }
-
-  /**
-   * `MultiOp` is a structure (sequence) of `Operation`s that that can be repeatedly
-   * applied on various inputs of the same type, producing a sequence of
-   * corresponding results.
+   * `MultiFun` is a structure (sequence) of `Function1`s that that can be
+   * repeatedly applied on various inputs of the same type, producing a
+   * sequence of corresponding results.
    *
-   * `MultiOp` is also a composite structure, meaning that the input functions can also contain `MultiOp` operations
+   * At the same time `MultiFun` is also a function, so calling apply(input)
+   * will apply the sequence of functions to the given input and produce a
+   * sequence of results.
    *
-   * The main use case is one input to multiple outputs.
-   * For example, given a pair
-   * of numbers, one can produce the list of results by applying +, _, * and /
-   * operators, in a corresponding sequence.
+   * The main use case is mapping one input to multiple outputs.
    *
-   * @tparam I the type of the input value
-   * @tparam T the type of the output sequence
+   * For example, given a pair of numbers, one can produce the list of results
+   * by applying +, _, * and / operators, in a corresponding sequence.
+   *
+   * @tparam A the type of the input value
+   * @tparam B the type of the output sequence
    * @author oliver
    */
-  case class MultiOp[A, +B](override val name: String, operations: Ops[A, B]) extends Operation[A, Seq[B]] {
+  sealed trait MultiFun[-A, +B] extends Fun[A, Seq[B]] {
 
-    def apply(input: A): Seq[B] = operations.map(f => f(input))
+    protected def functions: Funs[A, B]
 
-    def applyToMap(input: A): Map[String, B] = operations.map(f => (f.name, f(input))).toMap
+    /**
+     * Apply the input to the sequence of functions and produce a sequence
+     * of results in the same order as the corresponding functions.
+     *
+     * @param input
+     * @return the sequence of results in the same order as the corresponding
+     * functions.
+     */
+    def apply(input: A): Seq[B] = functions.map(f => f(input))
 
-    def +[A, B](that: MultiOp[A, B]): MultiOp[A, B] =
-      MultiOp(this.name, //          "(" + this.name + " + " + that.name + ")",
-        (this.operations ++ that.operations).asInstanceOf[Seq[Operation[A, B]]])
-
-    def map[C](g: Operation[A, B] => Operation[A, C]): MultiOp[A, C] =
-      MultiOp(s"$name mapped with ${g.name}", this.operations.map(f => g(f)))
-
-    def flatMap[C](g: Operation[A, B] => MultiOp[A, C]): MultiOp[A, C] =
-      this.operations.foldLeft(MultiOp[A, C]())((mf, f) => mf + g(f))
-
-    override def toString: String = s"$name: (${operations.map(_.name).mkString(", ")})"
-  }
-
-  /**
-   * Companion for `MultiOp`
-   */
-  object MultiOp {
-
-    def apply[A, B](): MultiOp[A, B] = new MultiOp[A, B](ANONYMOUS, Nil)
-    def apply[A, B](functions: Seq[A => B]): MultiOp[A, B] = {
-      new MultiOp[A, B](ANONYMOUS, functions)
-    }
-
-    def apply[A, B](name: String, function: A => B): MultiOp[A, B] = {
-      new MultiOp[A, B](name, List(function))
-    }
-
-    def apply[A, B](functionsMap: Map[String, A => B]): MultiOp[A, B] =
-      apply(functionsMap.foldLeft(List[A => B]())((acc, tup) => Op(tup._1, tup._2) :: acc))
-
-    /*
-    def apply[A, B](name: String): MultiOp[A, B] = new MultiOp[A, B](name, Nil)
-
-    def apply[A, B](functions: Seq[A => B]): MultiOp[A, B] = {
-      new MultiOp[A, B](ANONYMOUS, functions)
-    }
-
-    def apply[A, B](name: String, function: A => B): MultiOp[A, B] = {
-      new MultiOp[A, B](name, List(function))
-    }
-
-    def apply[A, B](name: String, functionsMap: Map[String, A => B]): MultiOp[A, B] =
-      new MultiOp[A, B](name, functionsMap.foldLeft(List[A => B]())((acc, tup) => Op(tup._1, tup._2) :: acc))
-
-    def apply[A, B](functionsMap: Map[String, A => B]): MultiOp[A, B] =
-      MultiOp(ANONYMOUS, functionsMap)
-*/
-  }
-
-  /**
-   * Implicit conversion of sequences of functions to sequences of operations
-   */
-  implicit def functionsToOperations[A, B](funcs: Seq[A => B]): Seq[Operation[A, B]] = {
-    (0 until funcs.size).zip(funcs).map {
-      case (i, f) => f match {
-        case af: Operation[A, B] => af
-        case xf: Function1[A, B] => Op("Fun$%02d".format(i), xf)
+    /**
+     * Apply the input to the sequence of functions and produce a map
+     * of results having as a key the name of the functions if it is a
+     * NamedFun instance or a generated name indicating the 0 based index of
+     * the corresponding function.
+     *
+     * @param input
+     * @return the map of results having as a key the name of the functions
+     * if it is a NamedFun instance or a generated name indicating the 0 based
+     * index of the corresponding function.
+     */
+    def applyToMap(input: A): Map[String, B] =
+      getNames.zip(functions).toMap.map {
+        case (n, f) => (n, f(input))
       }
+
+    /**
+     * Add a function to this `MultiFun` instance
+     */
+    def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y]
+
+    /**
+     * Add a `MultiFun` object to this `MultiFun` instance
+     */
+    def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y]
+
+    /**
+     * Return the list of names or generated names
+     */
+    lazy val getNames: Seq[String] =
+      (0 until functions.size).zip(functions).toMap.map {
+        case (i, f) => makeName(f, i)
+      }.toSeq
+
+    private val FUN_NAME_FORMAT = "Fun$%02d"
+
+    private def makeName(f: Fun[_, _], i: Int) = f match {
+      case op: NamedFun[_, _] => op.name
+      case _                  => FUN_NAME_FORMAT.format(i)
     }
+
   }
 
   /**
-   * Implicit conversion of functions to operations
+   * Companion for `MultiFun`
    */
-  implicit def functionToOperation[A, B](func: Function1[A, B]): Operation[A, B] = func match {
-    case af: Operation[A, B] => af
-    case xf: Function1[A, B] => Op(ANONYMOUS, xf)
-  }
+  object MultiFun {
 
-  final val ANONYMOUS = "#anon"
+    def apply[A, B](functions: Funs[A, B]): MultiFun[A, B] =
+      Nameless(functions)
+
+    def apply[A, B](functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
+      Nameless(functionsMap.foldLeft(Seq[A => B]())((acc, tup) => acc :+ NamedFun(tup._1, tup._2)))
+
+    def apply[A, B](name: String, function: Fun[A, B]): MultiFun[A, B] =
+      Named(name, Seq(function))
+
+    def apply[A, B](name: String, functions: Funs[A, B]): MultiFun[A, B] =
+      Named[A, B](name, functions)
+
+    def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
+      Named(name, functionsMap.foldLeft(Seq[A => B]())((acc, tup) => acc :+ NamedFun(tup._1, tup._2)))
+
+    def apply[A, B](name: String, multiFun: MultiFun[A, B]): MultiFun[A, B] =
+      Named[A, B](name, multiFun.functions)
+
+    /**
+     * This is a nameless MultiFun class
+     */
+    private case class Nameless[-A, +B](val functions: Funs[A, B]) extends MultiFun[A, B] {
+
+      /**
+       * Add a function to this `MultiFun` instance
+       */
+      def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+        Nameless((function +: functions))
+
+      /**
+       * Add a `MultiFun` object to this `MultiFun` instance
+       */
+      def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y] =
+        Nameless(this.functions ++ that.functions)
+    }
+
+    /**
+     * This is a MultiFun class that also has a name
+     */
+    private case class Named[-A, +B](val name: String, val functions: Funs[A, B]) extends MultiFun[A, B] with NamedFun[A, Seq[B]] {
+
+      def +:[X <: A, Y >: B](newName: String, function: Fun[X, Y]): MultiFun[X, Y] =
+        Named(newName, function +: functions)
+
+      def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+        +:(this.name, function)
+
+      def ++[X <: A, Y >: B](newName: String, that: MultiFun[X, Y]): MultiFun[X, Y] =
+        Named(newName, this.functions ++ that.functions)
+
+      def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y] =
+        ++(this.name, that)
+
+    }
+  }
 
 }

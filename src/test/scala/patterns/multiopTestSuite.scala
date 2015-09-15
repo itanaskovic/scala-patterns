@@ -13,8 +13,9 @@ import scala.async.Async.{ async, await }
 import scala.util.{ Try, Success, Failure }
 
 import patterns.multiop._
+
 /**
- * Tests for the MultiOp pattern
+ * Tests for the `MultiFun` pattern
  *
  * @author oliver
  */
@@ -23,21 +24,23 @@ import patterns.multiop._
 class multiopTestSuite extends FunSuite {
 
   type Operands = (Int, Int)
+  type CxFun = Fun[Operands, Double]
 
   trait TestSimpleFunctions {
     def add(in: Operands): Double = in._1 + in._2.doubleValue()
     def sub(in: Operands): Double = in._1 - in._2.doubleValue()
     def mul(in: Operands): Double = in._1 * in._2.doubleValue()
     def div(in: Operands): Double = in._1 / in._2.doubleValue()
-    val ops = List[Operands => Double](add, sub, mul, div)
-    val opsMap = Map[String, Operands => Double]("add" -> add,
+    val funList = List[CxFun](add, sub, mul, div)
+    val funMap = Map[String, CxFun]("add" -> add,
       "sub" -> sub, "mul" -> mul, "div" -> div)
 
   }
 
   trait TestSetNoException extends TestSimpleFunctions {
-    val mop = MultiOp(ops)
-    def testComplexFun(in: Operands) = mop(in)
+    val complexFun = MultiFun(funList)
+    def testComplexFun(in: Operands) = complexFun(in)
+    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
 
   trait TestSetWithException {
@@ -45,10 +48,11 @@ class multiopTestSuite extends FunSuite {
     def sub(in: Operands): Double = in._1 - in._2.doubleValue()
     def mul(in: Operands): Double = in._1 * in._2.doubleValue()
     def div(in: Operands): Double = throw new Exception
-    val ops = List[Operands => Double](add, sub, mul, div)
+    val funSeq = List[CxFun](add, sub, mul, div)
 
-    val mop = MultiOp(ops)
-    def testComplexFun(in: Operands) = mop.apply(in)
+    val complexFun = MultiFun(funSeq)
+    def testComplexFun(in: Operands) = complexFun.apply(in)
+    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
 
   trait TestSetWithTry {
@@ -56,10 +60,11 @@ class multiopTestSuite extends FunSuite {
     def sub(in: Operands): Try[Double] = Try(in._1 - in._2.doubleValue())
     def mul(in: Operands): Try[Double] = Try(in._1 * in._2.doubleValue())
     def div(in: Operands): Try[Double] = Try(if (in._2 == 0) throw new Exception else in._1 / in._2.doubleValue())
-    val ops = List[Operands => Try[Double]](add, sub, mul, div)
+    val funSeq = List[Operands => Try[Double]](add, sub, mul, div)
 
-    val mop = MultiOp(ops)
-    def testComplexFun(in: Operands) = mop.apply(in)
+    val complexFun = MultiFun(funSeq)
+    def testComplexFun(in: Operands) = complexFun.apply(in)
+    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
 
   trait TestSetWithFutures {
@@ -67,31 +72,35 @@ class multiopTestSuite extends FunSuite {
     def sub(in: Operands): Future[Double] = Future { Thread.sleep(600); in._1 - in._2.doubleValue() }
     def mul(in: Operands): Future[Double] = Future { Thread.sleep(400); in._1 * in._2.doubleValue() }
     def div(in: Operands): Future[Double] = Future { Thread.sleep(200); in._1 / in._2.doubleValue() }
-    val ops = List[Operands => Future[Double]](add, sub, mul, div)
+    val funSeq = List[Operands => Future[Double]](add, sub, mul, div)
 
-    val mop = MultiOp(ops)
-    def testComplexFun(in: Operands) = mop.apply(in)
+    val complexFun = MultiFun(funSeq)
+    def testComplexFun(in: Operands) = complexFun.apply(in)
+    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
 
   }
 
-  trait TestMapNoException {
-    def add(in: Operands): Double = in._1 + in._2.doubleValue()
-    def sub(in: Operands): Double = in._1 - in._2.doubleValue()
-    def mul(in: Operands): Double = in._1 * in._2.doubleValue()
-    def div(in: Operands): Double = in._1 / in._2.doubleValue()
-    val ops = List[Operands => Double](add, sub, mul, div)
-    val opsMap = Map[String, Operands => Double]("add" -> add,
+  trait TestSetInputClass {
+    case class Input(a: Int, b: Int)
+    case class DivResult(r: Float)
+    type CxFun = Fun[Input, Any]
+
+    def add(in: Input): String = s"${in.a + in.b}"
+    def sub(in: Input): Int = in.a - in.b
+    def mul(in: Input): Double = in.a * in.b.doubleValue()
+    def div(in: Input): DivResult = DivResult(in.a / in.b.floatValue())
+    val funList = List[CxFun](add, sub, mul, div)
+    val funMap = Map[String, CxFun]("add" -> add,
       "sub" -> sub, "mul" -> mul, "div" -> div)
-
   }
 
-  test("MultiOp no ops") {
+  test("MultiFun no functions") {
     new TestSetNoException {
 
       val input = (1, 2)
       val expect = List()
 
-      val noFun = MultiOp(Nil)
+      val noFun = MultiFun(Nil)
       def testNoFun(in: Operands) = noFun(in)
 
       val actual = testNoFun(input)
@@ -99,7 +108,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp normal case") {
+  test("MultiFun instance.apply(input)") {
     new TestSetNoException {
 
       val input = (1, 2)
@@ -110,7 +119,18 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp normal case infinitty") {
+  test("MultiFun instance.applyToMap(input)") {
+    new TestSetNoException {
+
+      val input = (1, 2)
+      val expect = Map("Fun$00" -> 3.0, "Fun$01" -> -1.0, "Fun$02" -> 2.0, "Fun$03" -> 0.5)
+
+      val actual = testComplexFunMap(input)
+      assert(actual === expect)
+    }
+  }
+
+  test("MultiFun instance.apply(input) with infinity in result") {
     new TestSetNoException {
 
       val input = (1, 0)
@@ -121,7 +141,18 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp Exception thrown") {
+  test("MultiFun instance.applyToMap(input) with infinity in result") {
+    new TestSetNoException {
+
+      val input = (1, 0)
+      val expect = Map("Fun$00" -> 1.0, "Fun$01" -> 1.0, "Fun$02" -> 0.0, "Fun$03" -> Double.PositiveInfinity)
+
+      val actual = testComplexFunMap(input)
+      assert(actual === expect)
+    }
+  }
+
+  test("MultiFun instance.apply(input) Exception thrown") {
     new TestSetWithException {
 
       val input = (1, 2)
@@ -131,19 +162,41 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp with Try Success") {
+  test("MultiFun instance.applyToMap(input) Exception thrown") {
+    new TestSetWithException {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0, 0.5)
+
+      intercept[Exception] { testComplexFunMap(input) }
+    }
+  }
+
+  test("MultiFun instance.apply(input) with Try Success") {
     new TestSetWithTry {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val actual = testComplexFun(input).map { _.get }
+      val actual = testComplexFun(input).map { case Success(x) => x; case Failure(e) => None }
       assert(actual === expect)
 
     }
   }
 
-  test("MultiOp with Try Failure") {
+  test("MultiFun instance.applyToMap(input) with Try Success") {
+    new TestSetWithTry {
+
+      val input = (1, 2)
+      val expect = Map("Fun$00" -> 3.0, "Fun$01" -> -1.0, "Fun$02" -> 2.0, "Fun$03" -> 0.5)
+
+      val actual = testComplexFunMap(input).map { case (n, Success(x)) => (n, x); case (n, Failure(e)) => (n, None) }
+      assert(actual === expect)
+
+    }
+  }
+
+  test("MultiFun instance.apply(input) with Try Failure") {
     new TestSetWithTry {
 
       val input = (1, 0)
@@ -155,7 +208,19 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp with Future") {
+  test("MultiFun instance.applyToMap(input) with Try Failure") {
+    new TestSetWithTry {
+
+      val input = (1, 0)
+      val expect = Map("Fun$00" -> 1.0, "Fun$01" -> 1.0, "Fun$02" -> 0.0, "Fun$03" -> None)
+
+      val actual = testComplexFunMap(input).map { case (n, Success(x)) => (n, x); case (n, Failure(e)) => (n, None) }
+      assert(actual === expect)
+
+    }
+  }
+
+  test("MultiFun instance.apply(input) with Future") {
     new TestSetWithFutures {
 
       val input = (1, 2)
@@ -167,22 +232,67 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiOp factory with map and single input") {
-    new TestMapNoException {
+  test("MultiFun instance.applyToMap(input) with Future") {
+    new TestSetWithFutures {
 
       val input = (1, 2)
-      val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
+      val expect = Map("Fun$00" -> 3.0, "Fun$01" -> -1.0, "Fun$02" -> 2.0, "Fun$03" -> 0.5)
 
-      val mop = MultiOp(opsMap)
-      def testComplexFun(in: Operands) = mop.applyToMap(in)
+      val actual = testComplexFunMap(input).map { case (n, x) => (n, Await.result(x, 1 second)) }
+      assert(actual === expect)
+      assert(complexFun.getNames === expect.keys.toSeq)
 
-      val actual = testComplexFun(input)
+    }
+  }
+
+  test("MultiFun factory with map and instance.apply(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0, 0.5)
+
+      val complexFun = MultiFun(funMap)
+      def testComplexFunMap(in: Operands) = complexFun.apply(in)
+
+      val actual = testComplexFunMap(input)
       assert(actual === expect)
     }
   }
 
-  test("MultiOp with map and multiple inputs") {
-    new TestMapNoException {
+  test("MultiFun factory with map and instance.applyToMap(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
+
+      val complexFun = MultiFun(funMap)
+      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+
+      val actual = testComplexFunMap(input)
+      assert(actual === expect)
+    }
+  }
+
+  test("MultiFun factory with map and instance.apply(input) mapped to a list of inputs") {
+    new TestSimpleFunctions {
+
+      val input1 = (1, 2)
+      val input2 = (1, 0)
+      val inputs = List(input1, input2)
+      val expect1 = List(3.0, -1.0, 2.0, 0.5)
+      val expect2 = List(1.0, 1.0, 0.0, Double.PositiveInfinity)
+      val expect = List(expect1, expect2)
+
+      val complexFun = MultiFun(funMap)
+      def testComplexFunMap(in: Operands) = complexFun.apply(in)
+
+      val actual = inputs.map(testComplexFunMap(_))
+      assert(actual === expect)
+    }
+  }
+
+  test("MultiFun factory with map and instance.applyToMap(input) mapped to a list of inputs") {
+    new TestSimpleFunctions {
 
       val input1 = (1, 2)
       val input2 = (1, 0)
@@ -191,154 +301,152 @@ class multiopTestSuite extends FunSuite {
       val expect2 = Map("add" -> 1.0, "sub" -> 1.0, "mul" -> 0.0, "div" -> Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val mop = MultiOp(opsMap)
-      def testComplexFun(in: Operands) = mop.applyToMap(in)
+      val complexFun = MultiFun(funMap)
+      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
 
-      val actual = inputs.map(testComplexFun(_))
+      val actual = inputs.map(testComplexFunMap(_))
       assert(actual === expect)
+      assert(complexFun.getNames === expect1.keys.toSeq)
     }
   }
 
-  test("MultiOp composite") {
+  test("MultiFun.Named factory mixed Fun and NFun and instance.apply(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0, 0.5)
+
+      val complexFun = MultiFun(List[CxFun](add, sub, NamedFun("mul", mul), div))
+
+      val actual = complexFun(input)
+      assert(actual == expect)
+    }
+  }
+
+  test("MultiFun.Named factory mixed Fun and NFun and instance.applyToMap(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = Map("add" -> 3.0, "Fun$01" -> -1.0, "mul" -> 2.0, "Fun$03" -> 0.5)
+
+      val complexFun = MultiFun(List[CxFun](NamedFun("add", add), sub, NamedFun("mul", mul), div))
+
+      val actual = complexFun.applyToMap(input)
+      assert(actual == expect)
+      assert(complexFun.getNames === expect.keys.toSeq)
+    }
+  }
+
+  test("MultiFun +") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0)
+
+      val mfun1 = MultiFun(List[CxFun](add, sub))
+
+      val mmul: Fun[Operands, Double] = mul
+      val mfun = mmul +: mfun1
+
+      assert(mfun(input) == expect)
+    }
+  }
+
+  test("MultiFun ++") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0)
+
+      val mfun11 = MultiFun(List[CxFun](add, sub))
+      val mfun12 = MultiFun(List[CxFun](mul))
+
+      val mfun = mfun11 ++ mfun12
+
+      assert(mfun(input) == expect)
+    }
+  }
+
+  test("MultiFun ++ associativity") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0)
+
+      val mfun11 = MultiFun(List[CxFun](add, sub))
+      val mfun12 = MultiFun(List[CxFun](mul))
+
+      val mfun21 = MultiFun(List[CxFun](add))
+      val mfun22 = MultiFun(List[CxFun](sub, mul))
+
+      val mfun1 = mfun11 ++ mfun12
+      val mfun2 = mfun21 ++ mfun22
+
+      assert(mfun1(input) === mfun2(input))
+      assert(mfun2(input) == expect)
+    }
+  }
+
+  test("MultiFun composite") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(List(3.0, -1.0), List(2.0, 0.5))
 
-      val mop1 = MultiOp(List[Operands => Double](add, sub))
-      val mop2 = MultiOp(List[Operands => Double](mul, div))
+      val mfun1 = MultiFun(List[CxFun](add, sub))
+      val mfun2 = MultiFun(List[CxFun](mul, div))
       def rem(in: Operands): Double = in._1 % in._2.doubleValue()
 
-      val mop = MultiOp(List(mop1, mop2))
+      val complexFun = MultiFun(List(mfun1, mfun2))
 
-      val actual = mop(input)
+      val actual = complexFun(input)
       assert(actual == expect)
     }
   }
 
-  test("MultiOp associativity") {
-    new TestSimpleFunctions {
+  test("MultiFun with input class and mixed result types") {
+    new TestSetInputClass {
 
-      val input = (1, 2)
-      val expect = List(3.0, -1.0, 2.0)
+      val input = Input(1, 2)
+      val expect = List("3", -1, 2.0, DivResult(0.5f))
 
-      val mop11 = MultiOp(List[Operands => Double](add, sub))
-      val mop12 = MultiOp(List[Operands => Double](mul))
+      val complexFun = MultiFun(List[CxFun](add, sub, mul, div))
 
-      val mop21 = MultiOp(List[Operands => Double](add))
-      val mop22 = MultiOp(List[Operands => Double](sub, mul))
-
-      val complex1 = mop11 + mop12
-      val complex2 = mop21 + mop22
-
-      assert(complex1(input) === complex2(input))
-      assert(complex1(input) == expect)
-    }
-  }
-
-  test("MultiOp composition map()") {
-    new TestSimpleFunctions {
-
-      val input = (1, 2)
-      val expect = List("(1,2) => 3.0", "(1,2) => -1.0")
-
-      def mkStr(f: Operands => Double): Operands => String = {
-        in: Operands => s"$in => ${f(in)}"
-      }
-      val mop = MultiOp(List[Operands => Double](add, sub))
-
-      val actual = mop.map(mkStr)(input)
+      val actual = complexFun(input)
       assert(actual == expect)
 
     }
-  }
 
-  test("MultiOp composition flatMap()") {
-    new TestSimpleFunctions {
+    import java.net.URL
 
-      val input = (1, 2)
-      val expect = List("(1,2) => 3.0", "(1,2) => -1.0")
+    val AMAZON_COM_URL = new URL("")
+    val AMAZON_UK_URL = new URL("")
+    val AMAZON_DE_URL = new URL("")
+    val EBAY_URL = new URL("")
+    val ALIBABA_URL = new URL("")
 
-      def mkStr(f: Operands => Double): MultiOp[Operands, String] = {
-        MultiOp[Operands, String](List[Operands => String] { in: Operands => s"$in => ${f(in)}" })
-      }
-      val mop = MultiOp(List[Operands => Double](add, sub))
+    case class Product(name: String, specifications: Map[String, String])
+    case class Price(value: Double, currency: String)
 
-      val actual = mop.flatMap(mkStr)(input)
-      assert(actual == expect)
-    }
-  }
+    def getPriceFromStore(product: Product, url: URL): Price = ???
 
-  test("MultiOp ++ associativity") {
-    new TestSimpleFunctions {
+    def getPriceFromAmazon_COM(product: Product) = getPriceFromStore(product, AMAZON_COM_URL)
+    def getPriceFromAmazon_UK(product: Product) = getPriceFromStore(product, AMAZON_UK_URL)
+    def getPriceFromAmazon_DE(product: Product) = getPriceFromStore(product, AMAZON_DE_URL)
+    def getPriceFromEBay(product: Product) = getPriceFromStore(product, EBAY_URL)
+    def getPriceFromAlibaba(product: Product) = getPriceFromStore(product, ALIBABA_URL)
 
-      val input = (1, 2)
-      val expect = List(3.0, -1.0, 2.0)
+    def getAmazonPrices = MultiFun(List(NamedFun("amazon.com", getPriceFromAmazon_COM),
+      NamedFun("amazon.uk", getPriceFromAmazon_UK),
+      NamedFun("amazon.de", getPriceFromAmazon_DE)))
 
-      val mop11 = MultiOp(List[Operands => Double](add, sub))
-      val mop12 = MultiOp(List[Operands => Double](mul))
+    def getOffersMainStores = getAmazonPrices ++ MultiFun(List(NamedFun("ebay", getPriceFromEBay),
+      NamedFun("alibaba", getPriceFromAlibaba)))
 
-      val mop21 = MultiOp(List[Operands => Double](add))
-      val mop22 = MultiOp(List[Operands => Double](sub, mul))
+    val interestingProduct = Product("Programming in Scala", Map("author" -> "Martin Odersky and Lex Spoon", "type" -> "Paperback"))
 
-      val mop1 = mop11 + mop12
-      val mop2 = mop21 + mop22
-
-      assert(mop1(input) === mop2(input))
-      assert(mop2(input) == expect)
-    }
-  }
-
-  test("MultiOp flatMap associativity") {
-
-    val input = (1, 2)
-    val expect = List("{(1,2) => 3.0}", "{(1,2) => -1.0}")
-
-    def mkStr(f: Operands => Double): MultiOp[Operands, String] = {
-      MultiOp[Operands, String](List[Operands => String] { in: Operands => s"$in => ${f(in)}" })
-    }
-
-    def mkStrFun2(f: Operands => String): MultiOp[Operands, String] = {
-      MultiOp[Operands, String](List[Operands => String] { in: Operands => s"{${f(in)}}" })
-    }
-
-    def testF1 = Op("testF1", mkStr)
-    def testF2 = Op("testF2", mkStrFun2)
-
-    def add = Op("add", { in: Operands => in._1 + in._2.doubleValue() })
-    def sub = Op("sub", { in: Operands => in._1 - in._2.doubleValue() })
-    val mop = MultiOp[Operands, Double]("mop", List(add, sub))
-
-    def fm1 = (mop flatMap testF1) flatMap testF2
-    def fm2 = mop flatMap (x => testF1(x) flatMap testF2)
-
-    assert(fm1(input) === fm1(input))
-    assert(fm1(input) == expect)
-
-  }
-
-  test("MultiOp left unit") {
-
-    val input = (1, 2)
-    val expect = List("(1,2) => 3.0")
-
-    def mkStr(f: Operands => Double): MultiOp[Operands, String] = {
-      MultiOp[Operands, String](List[Operands => String] { in: Operands => s"$in => ${f(in)}" })
-    }
-
-    def f = Op("f", mkStr)
-
-    def x = Op("add", { in: Operands => in._1 + in._2.doubleValue() })
-
-    val unit = MultiOp("mop", x)
-
-    def actual = unit flatMap f
-
-    assert(actual(input) === f(x)(input))
-    assert(actual(input) == expect)
-
-    println(unit)
-    println(actual)
+    val amazonPrices = getAmazonPrices(interestingProduct)
+    val mainStorePrices = getOffersMainStores(interestingProduct)
 
   }
 
