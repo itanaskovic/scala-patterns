@@ -11,7 +11,7 @@ This pattern is built on top of the GoF Composite pattern, but with a twist. The
 
 The component is a <code>Fun</code> object, the composite is a <code>MultiFun</code> object and the <code>operation()</code> is <code>apply()</code>.
 
-<img src="src/doc/resources/patterns/multifun/multifun.png"/>
+<div align="center"><img src="src/doc/resources/tupol/patterns/compofun/compofun.png"/></div>
 
 One can think of it as a a list of inputs of the same type that need to be transformed into a different list of outputs of the same or a different type.
 

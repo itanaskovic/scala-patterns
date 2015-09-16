@@ -1,4 +1,4 @@
-package patterns
+package tupol.patterns
 
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
@@ -12,16 +12,16 @@ import scala.concurrent.ExecutionContext.Implicits._
 import scala.async.Async.{ async, await }
 import scala.util.{ Try, Success, Failure }
 
-import patterns.multiop._
+import tupol.patterns.compofun._
 
 /**
- * Tests for the `MultiFun` pattern
+ * Tests for the `CompoFun` pattern
  *
  * @author oliver
  */
 
 @RunWith(classOf[JUnitRunner])
-class multiopTestSuite extends FunSuite {
+class compofunTestSuite extends FunSuite {
 
   type Operands = (Int, Int)
   type CxFun = Function1[Operands, Double]
@@ -38,7 +38,7 @@ class multiopTestSuite extends FunSuite {
   }
 
   trait TestSetNoException extends TestSimpleFunctions {
-    val complexFun = MultiFun(funList)
+    val complexFun = CompoFun(funList)
     def testComplexFun(in: Operands) = complexFun(in)
     def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
@@ -50,7 +50,7 @@ class multiopTestSuite extends FunSuite {
     def div(in: Operands): Double = throw new Exception
     val funSeq = List[CxFun](add, sub, mul, div)
 
-    val complexFun = MultiFun(funSeq)
+    val complexFun = CompoFun(funSeq)
     def testComplexFun(in: Operands) = complexFun.apply(in)
     def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
@@ -62,7 +62,7 @@ class multiopTestSuite extends FunSuite {
     def div(in: Operands): Try[Double] = Try(if (in._2 == 0) throw new Exception else in._1 / in._2.doubleValue())
     val funSeq = List[Operands => Try[Double]](add, sub, mul, div)
 
-    val complexFun = MultiFun(funSeq)
+    val complexFun = CompoFun(funSeq)
     def testComplexFun(in: Operands) = complexFun.apply(in)
     def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
   }
@@ -74,7 +74,7 @@ class multiopTestSuite extends FunSuite {
     def div(in: Operands): Future[Double] = Future { Thread.sleep(200); in._1 / in._2.doubleValue() }
     val funSeq = List[Operands => Future[Double]](add, sub, mul, div)
 
-    val complexFun = MultiFun(funSeq)
+    val complexFun = CompoFun(funSeq)
     def testComplexFun(in: Operands) = complexFun.apply(in)
     def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
 
@@ -94,13 +94,13 @@ class multiopTestSuite extends FunSuite {
       "sub" -> sub, "mul" -> mul, "div" -> div)
   }
 
-  test("MultiFun no functions") {
+  test("CompoFun no functions") {
     new TestSetNoException {
 
       val input = (1, 2)
       val expect = List()
 
-      val noFun = MultiFun(Nil)
+      val noFun = CompoFun(Nil)
       def testNoFun(in: Operands) = noFun(in)
 
       val actual = testNoFun(input)
@@ -108,7 +108,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input)") {
+  test("CompoFun instance.apply(input)") {
     new TestSetNoException {
 
       val input = (1, 2)
@@ -119,7 +119,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input)") {
+  test("CompoFun instance.applyToMap(input)") {
     new TestSetNoException {
 
       val input = (1, 2)
@@ -130,7 +130,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input) with infinity in result") {
+  test("CompoFun instance.apply(input) with infinity in result") {
     new TestSetNoException {
 
       val input = (1, 0)
@@ -141,7 +141,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input) with infinity in result") {
+  test("CompoFun instance.applyToMap(input) with infinity in result") {
     new TestSetNoException {
 
       val input = (1, 0)
@@ -152,7 +152,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input) Exception thrown") {
+  test("CompoFun instance.apply(input) Exception thrown") {
     new TestSetWithException {
 
       val input = (1, 2)
@@ -162,7 +162,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input) Exception thrown") {
+  test("CompoFun instance.applyToMap(input) Exception thrown") {
     new TestSetWithException {
 
       val input = (1, 2)
@@ -172,7 +172,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input) with Try Success") {
+  test("CompoFun instance.apply(input) with Try Success") {
     new TestSetWithTry {
 
       val input = (1, 2)
@@ -184,7 +184,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input) with Try Success") {
+  test("CompoFun instance.applyToMap(input) with Try Success") {
     new TestSetWithTry {
 
       val input = (1, 2)
@@ -196,7 +196,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input) with Try Failure") {
+  test("CompoFun instance.apply(input) with Try Failure") {
     new TestSetWithTry {
 
       val input = (1, 0)
@@ -208,7 +208,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input) with Try Failure") {
+  test("CompoFun instance.applyToMap(input) with Try Failure") {
     new TestSetWithTry {
 
       val input = (1, 0)
@@ -220,7 +220,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.apply(input) with Future") {
+  test("CompoFun instance.apply(input) with Future") {
     new TestSetWithFutures {
 
       val input = (1, 2)
@@ -232,7 +232,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun instance.applyToMap(input) with Future") {
+  test("CompoFun instance.applyToMap(input) with Future") {
     new TestSetWithFutures {
 
       val input = (1, 2)
@@ -245,13 +245,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun factory with map and instance.apply(input)") {
+  test("CompoFun factory with map and instance.apply(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val complexFun = MultiFun(funMap)
+      val complexFun = CompoFun(funMap)
       def testComplexFunMap(in: Operands) = complexFun.apply(in)
 
       val actual = testComplexFunMap(input)
@@ -259,13 +259,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun factory with map and instance.applyToMap(input)") {
+  test("CompoFun factory with map and instance.applyToMap(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
 
-      val complexFun = MultiFun(funMap)
+      val complexFun = CompoFun(funMap)
       def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
 
       val actual = testComplexFunMap(input)
@@ -273,7 +273,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun factory with map and instance.apply(input) mapped to a list of inputs") {
+  test("CompoFun factory with map and instance.apply(input) mapped to a list of inputs") {
     new TestSimpleFunctions {
 
       val input1 = (1, 2)
@@ -283,7 +283,7 @@ class multiopTestSuite extends FunSuite {
       val expect2 = List(1.0, 1.0, 0.0, Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val complexFun = MultiFun(funMap)
+      val complexFun = CompoFun(funMap)
       def testComplexFunMap(in: Operands) = complexFun.apply(in)
 
       val actual = inputs.map(testComplexFunMap(_))
@@ -291,7 +291,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun factory with map and instance.applyToMap(input) mapped to a list of inputs") {
+  test("CompoFun factory with map and instance.applyToMap(input) mapped to a list of inputs") {
     new TestSimpleFunctions {
 
       val input1 = (1, 2)
@@ -301,7 +301,7 @@ class multiopTestSuite extends FunSuite {
       val expect2 = Map("add" -> 1.0, "sub" -> 1.0, "mul" -> 0.0, "div" -> Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val complexFun = MultiFun(funMap)
+      val complexFun = CompoFun(funMap)
       def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
 
       val actual = inputs.map(testComplexFunMap(_))
@@ -310,13 +310,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun.Named factory mixed Fun and NFun and instance.apply(input)") {
+  test("CompoFun.Named factory mixed Fun and NFun and instance.apply(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val complexFun = MultiFun(List[CxFun](add, sub, Fun("mul", mul), div))
+      val complexFun = CompoFun(List[CxFun](add, sub, Fun("mul", mul), div))
 
       val actual = complexFun(input)
       assert(actual == expect)
@@ -324,13 +324,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun.Named factory mixed named and nameless functions and instance.applyToMap(input)") {
+  test("CompoFun.Named factory mixed named and nameless functions and instance.applyToMap(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "Fun$01" -> -1.0, "mul" -> 2.0, "Fun$03" -> 0.5)
 
-      val complexFun = MultiFun(List[CxFun](Fun("add", add), sub, Fun("mul", mul), div))
+      val complexFun = CompoFun(List[CxFun](Fun("add", add), sub, Fun("mul", mul), div))
 
       val actual = complexFun.applyToMap(input)
       assert(actual == expect)
@@ -338,13 +338,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun :+") {
+  test("CompoFun :+") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun1 = MultiFun(List[CxFun](add, sub))
+      val mfun1 = CompoFun(List[CxFun](add, sub))
 
       val mfun = mfun1 :+ Fun(mul)
 
@@ -352,13 +352,13 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun +:") {
+  test("CompoFun +:") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(2.0, 3.0, -1.0)
 
-      val mfun1 = MultiFun(List[CxFun](add, sub))
+      val mfun1 = CompoFun(List[CxFun](add, sub))
 
       val mfun = Fun(mul) +: mfun1
 
@@ -366,14 +366,14 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun ++") {
+  test("CompoFun ++") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun11 = MultiFun(List[CxFun](add, sub))
-      val mfun12 = MultiFun(List[CxFun](mul))
+      val mfun11 = CompoFun(List[CxFun](add, sub))
+      val mfun12 = CompoFun(List[CxFun](mul))
 
       val mfun = mfun11 ++ mfun12
 
@@ -381,17 +381,17 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun ++ associativity") {
+  test("CompoFun ++ associativity") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun11 = MultiFun(List[CxFun](add, sub))
-      val mfun12 = MultiFun(List[CxFun](mul))
+      val mfun11 = CompoFun(List[CxFun](add, sub))
+      val mfun12 = CompoFun(List[CxFun](mul))
 
-      val mfun21 = MultiFun(List[CxFun](add))
-      val mfun22 = MultiFun(List[CxFun](sub, mul))
+      val mfun21 = CompoFun(List[CxFun](add))
+      val mfun22 = CompoFun(List[CxFun](sub, mul))
 
       val mfun1 = mfun11 ++ mfun12
       val mfun2 = mfun21 ++ mfun22
@@ -401,30 +401,30 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun composite") {
+  test("CompoFun composite") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(List(3.0, -1.0), List(2.0, 0.5))
 
-      val mfun1 = MultiFun(List[CxFun](add, sub))
-      val mfun2 = MultiFun(List[CxFun](mul, div))
+      val mfun1 = CompoFun(List[CxFun](add, sub))
+      val mfun2 = CompoFun(List[CxFun](mul, div))
       def rem(in: Operands): Double = in._1 % in._2.doubleValue()
 
-      val complexFun = MultiFun(List(mfun1, mfun2))
+      val complexFun = CompoFun(List(mfun1, mfun2))
 
       val actual = complexFun(input)
       assert(actual == expect)
     }
   }
 
-  test("MultiFun with input class and mixed result types") {
+  test("CompoFun with input class and mixed result types") {
     new TestSetInputClass {
 
       val input = Input(1, 2)
       val expect = List("3", -1, 2.0, DivResult(0.5f))
 
-      val complexFun = MultiFun(List[CxFun](add, sub, mul, div))
+      val complexFun = CompoFun(List[CxFun](add, sub, mul, div))
 
       val actual = complexFun(input)
       assert(actual == expect)
@@ -440,11 +440,11 @@ class multiopTestSuite extends FunSuite {
     //    def getPriceFromEBay(product: Product): Price = ???
     //    def getPriceFromAlibaba(product: Product): Price = ???
     //
-    //    def getAmazonPrices = MultiFun(List(Fun("amazon.com", getPriceFromAmazon_COM),
+    //    def getAmazonPrices = CompoFun(List(Fun("amazon.com", getPriceFromAmazon_COM),
     //      Fun("amazon.uk", getPriceFromAmazon_UK),
     //      Fun("amazon.de", getPriceFromAmazon_DE)))
     //
-    //    def getOffersMainStores = getAmazonPrices ++ MultiFun(List(Fun("ebay", getPriceFromEBay),
+    //    def getOffersMainStores = getAmazonPrices ++ CompoFun(List(Fun("ebay", getPriceFromEBay),
     //      Fun("alibaba", getPriceFromAlibaba)))
     //
     //    val interestingProduct = Product("Programming in Scala", Map("author" -> "Martin Odersky and Lex Spoon", "type" -> "Paperback"))

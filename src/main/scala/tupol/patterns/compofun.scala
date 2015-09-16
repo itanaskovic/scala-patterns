@@ -1,19 +1,19 @@
-package patterns
+package tupol.patterns
 
 import scala.language.implicitConversions
 
 /**
  * This package contains the `multiop` pattern.
  *
- * The key elements of this pattern are Fun and MultiFun.
+ * The key elements of this pattern are Fun and CompoFun.
  *
  * Fun is a wrapper class for Function1 which can also create named functions.
- * MultiFun is a Fun container containing a sequence of functions that are
+ * CompoFun is a Fun container containing a sequence of functions that are
  * applied to the same input.
  *
  * @author oliver
  */
-package object multiop {
+package object compofun {
 
   type Funs[-A, +B] = Seq[Fun[A, B]]
   type Fun1[-A, +B] = A => B
@@ -54,11 +54,11 @@ package object multiop {
   }
 
   /**
-   * `MultiFun` is a structure (sequence) of `Function1`s that that can be
+   * `CompoFun` is a structure (sequence) of `Function1`s that that can be
    * repeatedly applied on various inputs of the same type, producing a
    * sequence of corresponding results.
    *
-   * At the same time `MultiFun` is also a function, so calling apply(input)
+   * At the same time `CompoFun` is also a function, so calling apply(input)
    * will apply the sequence of functions to the given input and produce a
    * sequence of results.
    *
@@ -71,7 +71,7 @@ package object multiop {
    * @tparam B the type of the output sequence
    * @author oliver
    */
-  sealed trait MultiFun[-A, +B] extends Fun[A, Seq[B]] {
+  sealed trait CompoFun[-A, +B] extends Fun[A, Seq[B]] {
 
     protected def functions: Funs[A, B]
 
@@ -102,19 +102,19 @@ package object multiop {
       }
 
     /**
-     * Prepend function to this `MultiFun` instance
+     * Prepend function to this `CompoFun` instance
      */
-    def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y]
+    def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y]
 
     /**
-     * Append function to this `MultiFun`
+     * Append function to this `CompoFun`
      */
-    def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y]
+    def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y]
 
     /**
-     * Add that `MultiFun` object to this `MultiFun` instance
+     * Add that `CompoFun` object to this `CompoFun` instance
      */
-    def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y]
+    def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y]
 
     /**
      * Return the list of names or generated names
@@ -134,64 +134,64 @@ package object multiop {
   }
 
   /**
-   * Companion for `MultiFun`
+   * Companion for `CompoFun`
    */
-  object MultiFun {
+  object CompoFun {
 
-    def apply[A, B](functions: Seq[Fun1[A, B]]): MultiFun[A, B] =
+    def apply[A, B](functions: Seq[Fun1[A, B]]): CompoFun[A, B] =
       Nameless(functions)
 
-    def apply[A, B](functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
+    def apply[A, B](functionsMap: Map[String, Fun[A, B]]): CompoFun[A, B] =
       Nameless(functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
-    def apply[A, B](name: String, function: Fun[A, B]): MultiFun[A, B] =
+    def apply[A, B](name: String, function: Fun[A, B]): CompoFun[A, B] =
       Named(name, Seq(function))
 
-    def apply[A, B](name: String, functions: Funs[A, B]): MultiFun[A, B] =
+    def apply[A, B](name: String, functions: Funs[A, B]): CompoFun[A, B] =
       Named[A, B](name, functions)
 
-    def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
+    def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]]): CompoFun[A, B] =
       Named(name, functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
-    def apply[A, B](name: String, multiFun: MultiFun[A, B]): MultiFun[A, B] =
+    def apply[A, B](name: String, multiFun: CompoFun[A, B]): CompoFun[A, B] =
       Named[A, B](name, multiFun.functions)
 
     /**
-     * This is a nameless MultiFun class
+     * This is a nameless CompoFun class
      */
-    private case class Nameless[-A, +B](val functions: Funs[A, B]) extends MultiFun[A, B] {
+    private case class Nameless[-A, +B](val functions: Funs[A, B]) extends CompoFun[A, B] {
 
-      def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+      def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
         Nameless((function +: functions))
 
-      def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+      def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
         Nameless((functions :+ function))
 
-      def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y] =
+      def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
         Nameless(this.functions ++ that.functions)
     }
 
     /**
-     * This is a MultiFun class that also has a name
+     * This is a CompoFun class that also has a name
      */
-    private case class Named[-A, +B](val name: String, val functions: Funs[A, B]) extends MultiFun[A, B] with NamedFun[A, Seq[B]] {
+    private case class Named[-A, +B](val name: String, val functions: Funs[A, B]) extends CompoFun[A, B] with NamedFun[A, Seq[B]] {
 
-      def +:[X <: A, Y >: B](newName: String, function: Fun[X, Y]): MultiFun[X, Y] =
+      def +:[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
         Named(newName, function +: functions)
 
-      def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+      def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
         +:(this.name, function)
 
-      def :+[X <: A, Y >: B](newName: String, function: Fun[X, Y]): MultiFun[X, Y] =
+      def :+[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
         Named(newName, (functions :+ function))
 
-      def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+      def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
         :+(this.name, function)
 
-      def ++[X <: A, Y >: B](newName: String, that: MultiFun[X, Y]): MultiFun[X, Y] =
+      def ++[X <: A, Y >: B](newName: String, that: CompoFun[X, Y]): CompoFun[X, Y] =
         Named(newName, this.functions ++ that.functions)
 
-      def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y] =
+      def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
         ++(this.name, that)
 
     }
