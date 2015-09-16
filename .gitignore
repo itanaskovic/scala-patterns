@@ -47,11 +47,8 @@
 /.idea
 /.settings
 
-# Standard symbolic link to build/quick/bin
-/qbin
 
 # Sbt's target directories
 /target/
 /project/target/
 /project/project/target
-/build-sbt/

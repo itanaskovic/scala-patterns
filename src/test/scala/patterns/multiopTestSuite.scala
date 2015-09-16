@@ -24,15 +24,15 @@ import patterns.multiop._
 class multiopTestSuite extends FunSuite {
 
   type Operands = (Int, Int)
-  type CxFun = Fun[Operands, Double]
+  type CxFun = Function1[Operands, Double]
 
   trait TestSimpleFunctions {
     def add(in: Operands): Double = in._1 + in._2.doubleValue()
     def sub(in: Operands): Double = in._1 - in._2.doubleValue()
     def mul(in: Operands): Double = in._1 * in._2.doubleValue()
     def div(in: Operands): Double = in._1 / in._2.doubleValue()
-    val funList = List[CxFun](add, sub, mul, div)
-    val funMap = Map[String, CxFun]("add" -> add,
+    val funList = List[Operands => Double](add, sub, mul, div)
+    val funMap = Map[String, Operands => Double]("add" -> add,
       "sub" -> sub, "mul" -> mul, "div" -> div)
 
   }
@@ -83,7 +83,7 @@ class multiopTestSuite extends FunSuite {
   trait TestSetInputClass {
     case class Input(a: Int, b: Int)
     case class DivResult(r: Float)
-    type CxFun = Fun[Input, Any]
+    type CxFun = Function1[Input, Any]
 
     def add(in: Input): String = s"${in.a + in.b}"
     def sub(in: Input): Int = in.a - in.b
@@ -316,20 +316,21 @@ class multiopTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val complexFun = MultiFun(List[CxFun](add, sub, NamedFun("mul", mul), div))
+      val complexFun = MultiFun(List[CxFun](add, sub, Fun("mul", mul), div))
 
       val actual = complexFun(input)
       assert(actual == expect)
+      assert(complexFun.getNames === Seq("Fun$00", "Fun$01", "mul", "Fun$03"))
     }
   }
 
-  test("MultiFun.Named factory mixed Fun and NFun and instance.applyToMap(input)") {
+  test("MultiFun.Named factory mixed named and nameless functions and instance.applyToMap(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "Fun$01" -> -1.0, "mul" -> 2.0, "Fun$03" -> 0.5)
 
-      val complexFun = MultiFun(List[CxFun](NamedFun("add", add), sub, NamedFun("mul", mul), div))
+      val complexFun = MultiFun(List[CxFun](Fun("add", add), sub, Fun("mul", mul), div))
 
       val actual = complexFun.applyToMap(input)
       assert(actual == expect)
@@ -337,7 +338,7 @@ class multiopTestSuite extends FunSuite {
     }
   }
 
-  test("MultiFun +") {
+  test("MultiFun :+") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
@@ -345,8 +346,21 @@ class multiopTestSuite extends FunSuite {
 
       val mfun1 = MultiFun(List[CxFun](add, sub))
 
-      val mmul: Fun[Operands, Double] = mul
-      val mfun = mmul +: mfun1
+      val mfun = mfun1 :+ Fun(mul)
+
+      assert(mfun(input) == expect)
+    }
+  }
+
+  test("MultiFun +:") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(2.0, 3.0, -1.0)
+
+      val mfun1 = MultiFun(List[CxFun](add, sub))
+
+      val mfun = Fun(mul) +: mfun1
 
       assert(mfun(input) == expect)
     }
@@ -417,36 +431,26 @@ class multiopTestSuite extends FunSuite {
 
     }
 
-    import java.net.URL
-
-    val AMAZON_COM_URL = new URL("")
-    val AMAZON_UK_URL = new URL("")
-    val AMAZON_DE_URL = new URL("")
-    val EBAY_URL = new URL("")
-    val ALIBABA_URL = new URL("")
-
-    case class Product(name: String, specifications: Map[String, String])
-    case class Price(value: Double, currency: String)
-
-    def getPriceFromStore(product: Product, url: URL): Price = ???
-
-    def getPriceFromAmazon_COM(product: Product) = getPriceFromStore(product, AMAZON_COM_URL)
-    def getPriceFromAmazon_UK(product: Product) = getPriceFromStore(product, AMAZON_UK_URL)
-    def getPriceFromAmazon_DE(product: Product) = getPriceFromStore(product, AMAZON_DE_URL)
-    def getPriceFromEBay(product: Product) = getPriceFromStore(product, EBAY_URL)
-    def getPriceFromAlibaba(product: Product) = getPriceFromStore(product, ALIBABA_URL)
-
-    def getAmazonPrices = MultiFun(List(NamedFun("amazon.com", getPriceFromAmazon_COM),
-      NamedFun("amazon.uk", getPriceFromAmazon_UK),
-      NamedFun("amazon.de", getPriceFromAmazon_DE)))
-
-    def getOffersMainStores = getAmazonPrices ++ MultiFun(List(NamedFun("ebay", getPriceFromEBay),
-      NamedFun("alibaba", getPriceFromAlibaba)))
-
-    val interestingProduct = Product("Programming in Scala", Map("author" -> "Martin Odersky and Lex Spoon", "type" -> "Paperback"))
-
-    val amazonPrices = getAmazonPrices(interestingProduct)
-    val mainStorePrices = getOffersMainStores(interestingProduct)
+    //    case class Product(name: String, specifications: Map[String, String])
+    //    case class Price(value: Double, currency: String)
+    //
+    //    def getPriceFromAmazon_COM(product: Product): Price = ???
+    //    def getPriceFromAmazon_UK(product: Product): Price = ???
+    //    def getPriceFromAmazon_DE(product: Product): Price = ???
+    //    def getPriceFromEBay(product: Product): Price = ???
+    //    def getPriceFromAlibaba(product: Product): Price = ???
+    //
+    //    def getAmazonPrices = MultiFun(List(Fun("amazon.com", getPriceFromAmazon_COM),
+    //      Fun("amazon.uk", getPriceFromAmazon_UK),
+    //      Fun("amazon.de", getPriceFromAmazon_DE)))
+    //
+    //    def getOffersMainStores = getAmazonPrices ++ MultiFun(List(Fun("ebay", getPriceFromEBay),
+    //      Fun("alibaba", getPriceFromAlibaba)))
+    //
+    //    val interestingProduct = Product("Programming in Scala", Map("author" -> "Martin Odersky and Lex Spoon", "type" -> "Paperback"))
+    //
+    //    val amazonPrices = getAmazonPrices(interestingProduct)
+    //    val mainStorePrices = getOffersMainStores.applyToMap(interestingProduct)
 
   }
 

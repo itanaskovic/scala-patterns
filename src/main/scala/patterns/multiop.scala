@@ -5,31 +5,52 @@ import scala.language.implicitConversions
 /**
  * This package contains the `multiop` pattern.
  *
+ * The key elements of this pattern are Fun and MultiFun.
+ *
+ * Fun is a wrapper class for Function1 which can also create named functions.
+ * MultiFun is a Fun container containing a sequence of functions that are
+ * applied to the same input.
  *
  * @author oliver
  */
 package object multiop {
 
-  type Fun[-A, +B] = A => B
   type Funs[-A, +B] = Seq[Fun[A, B]]
+  type Fun1[-A, +B] = A => B
+
+  import scala.language.implicitConversions
+
+  implicit def funstofuns[A, B](f: Seq[A => B]) = f.map {
+    case sf: Fun[A, B]       => sf
+    case f1: Function1[A, B] => Fun(f1)
+  }
+  implicit def funMaptofunMap[A, B](f: Map[String, A => B]) = f.map {
+    case (n, sf: Fun[A, B])       => (n, sf)
+    case (n, f1: Function1[A, B]) => (n, Fun(f1))
+  }
+
+  sealed trait Fun[-A, +B] extends Function1[A, B]
+
+  object Fun {
+    def apply[A, B](function: A => B): Fun[A, B] = function match {
+      case sf: Fun[A, B] => sf
+      case f1: Function1[A, B] => new Fun[A, B] {
+        def apply(input: A): B = function(input)
+      }
+    }
+    def apply[A, B](fname: String, function: A => B): Fun[A, B] = new NamedFun[A, B] {
+      val name = fname
+      def apply(input: A): B = function(input)
+    }
+  }
 
   /**
    * We define an `NamedFun` to be a function of A => B that also has a name
    */
-  sealed trait NamedFun[-A, +B] extends Fun[A, B] {
+  private trait NamedFun[-A, +B] extends Fun[A, B] {
     def name: String
     def apply(input: A): B
     override def toString() = s"<$name>"
-  }
-
-  /**
-   * Companion for `NamedFun`
-   */
-  object NamedFun {
-    def apply[A, B](fname: String, function: A => B): NamedFun[A, B] = new NamedFun[A, B] {
-      val name = fname
-      def apply(input: A): B = function(input)
-    }
   }
 
   /**
@@ -81,12 +102,17 @@ package object multiop {
       }
 
     /**
-     * Add a function to this `MultiFun` instance
+     * Prepend function to this `MultiFun` instance
      */
     def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y]
 
     /**
-     * Add a `MultiFun` object to this `MultiFun` instance
+     * Append function to this `MultiFun`
+     */
+    def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y]
+
+    /**
+     * Add that `MultiFun` object to this `MultiFun` instance
      */
     def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y]
 
@@ -112,11 +138,11 @@ package object multiop {
    */
   object MultiFun {
 
-    def apply[A, B](functions: Funs[A, B]): MultiFun[A, B] =
+    def apply[A, B](functions: Seq[Fun1[A, B]]): MultiFun[A, B] =
       Nameless(functions)
 
     def apply[A, B](functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
-      Nameless(functionsMap.foldLeft(Seq[A => B]())((acc, tup) => acc :+ NamedFun(tup._1, tup._2)))
+      Nameless(functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
     def apply[A, B](name: String, function: Fun[A, B]): MultiFun[A, B] =
       Named(name, Seq(function))
@@ -125,7 +151,7 @@ package object multiop {
       Named[A, B](name, functions)
 
     def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]]): MultiFun[A, B] =
-      Named(name, functionsMap.foldLeft(Seq[A => B]())((acc, tup) => acc :+ NamedFun(tup._1, tup._2)))
+      Named(name, functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
     def apply[A, B](name: String, multiFun: MultiFun[A, B]): MultiFun[A, B] =
       Named[A, B](name, multiFun.functions)
@@ -135,15 +161,12 @@ package object multiop {
      */
     private case class Nameless[-A, +B](val functions: Funs[A, B]) extends MultiFun[A, B] {
 
-      /**
-       * Add a function to this `MultiFun` instance
-       */
       def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
         Nameless((function +: functions))
 
-      /**
-       * Add a `MultiFun` object to this `MultiFun` instance
-       */
+      def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+        Nameless((functions :+ function))
+
       def ++[X <: A, Y >: B](that: MultiFun[X, Y]): MultiFun[X, Y] =
         Nameless(this.functions ++ that.functions)
     }
@@ -159,6 +182,12 @@ package object multiop {
       def +:[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
         +:(this.name, function)
 
+      def :+[X <: A, Y >: B](newName: String, function: Fun[X, Y]): MultiFun[X, Y] =
+        Named(newName, (functions :+ function))
+
+      def :+[X <: A, Y >: B](function: Fun[X, Y]): MultiFun[X, Y] =
+        :+(this.name, function)
+
       def ++[X <: A, Y >: B](newName: String, that: MultiFun[X, Y]): MultiFun[X, Y] =
         Named(newName, this.functions ++ that.functions)
 
@@ -166,6 +195,7 @@ package object multiop {
         ++(this.name, that)
 
     }
+
   }
 
 }
