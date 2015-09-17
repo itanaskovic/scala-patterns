@@ -22,7 +22,7 @@ Normally, and probably in most of the cases one will build a class or a data str
 
 By default the <code>CompoFun</code> is synchronous, so the functions are executed in the order of the sequence.
 
-For convenience, the <code>ACompoFun</code> has factory methods that build a <code>CompoFun</code> with all functions wrapped in <code>Future</code>s. This way teh functions are executed asynchronously.
+For convenience, the <code>ACompoFun</code> has factory methods that build a <code>CompoFun</code> with all functions wrapped in <code>Future</code>s. This way the functions are executed asynchronously and thus the <code>ACompoFun</code> is a non-blocking function.
 
 <h4>Elements</h4>
 
