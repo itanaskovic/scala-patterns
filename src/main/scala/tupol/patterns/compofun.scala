@@ -3,7 +3,7 @@ package tupol.patterns
 import scala.language.implicitConversions
 
 /**
- * This package contains the `multiop` pattern.
+ * This package contains the `compofun` pattern.
  *
  * The key elements of this pattern are Fun and CompoFun.
  *
@@ -11,24 +11,34 @@ import scala.language.implicitConversions
  * CompoFun is a Fun container containing a sequence of functions that are
  * applied to the same input.
  *
+ * Other possible names: multifun, demux, xfun
+ *
  * @author oliver
  */
 package object compofun {
 
+  /**
+   * Sequence of Fun functions
+   */
   type Funs[-A, +B] = Seq[Fun[A, B]]
+  /**
+   * Wrapper type for Function1[A, B]
+   */
   type Fun1[-A, +B] = A => B
 
   import scala.language.implicitConversions
 
-  implicit def funstofuns[A, B](f: Seq[A => B]) = f.map {
+  implicit def fun2fun[A, B](f: A => B) = f match {
     case sf: Fun[A, B]       => sf
     case f1: Function1[A, B] => Fun(f1)
   }
-  implicit def funMaptofunMap[A, B](f: Map[String, A => B]) = f.map {
-    case (n, sf: Fun[A, B])       => (n, sf)
-    case (n, f1: Function1[A, B]) => (n, Fun(f1))
-  }
+  implicit def funs2funs[A, B](f: Seq[A => B]) = f.map(fun2fun(_))
+  implicit def funMap2funMap[A, B](f: Map[String, A => B]) =
+    f.map(nf => (nf._1, fun2fun(nf._2)))
 
+  /**
+   * Wrapper for Function1[A, B] ( A => B )
+   */
   sealed trait Fun[-A, +B] extends Function1[A, B]
 
   object Fun {
@@ -73,7 +83,7 @@ package object compofun {
    */
   sealed trait CompoFun[-A, +B] extends Fun[A, Seq[B]] {
 
-    protected def functions: Funs[A, B]
+    protected[patterns] def functions: Funs[A, B]
 
     /**
      * Apply the input to the sequence of functions and produce a sequence
@@ -134,67 +144,109 @@ package object compofun {
   }
 
   /**
+   * This is a nameless CompoFun class
+   */
+  private case class NamelessCompoFun[-A, +B](val functions: Funs[A, B]) extends CompoFun[A, B] {
+
+    def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
+      NamelessCompoFun((function +: functions))
+
+    def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
+      NamelessCompoFun((functions :+ function))
+
+    def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
+      NamelessCompoFun(this.functions ++ that.functions)
+  }
+
+  /**
+   * This is a `CompoFun` class that also has a name
+   */
+  private case class NamedCompoFun[-A, +B](val name: String, val functions: Funs[A, B]) extends CompoFun[A, B] with NamedFun[A, Seq[B]] {
+
+    def +:[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
+      NamedCompoFun(newName, function +: functions)
+
+    def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
+      +:(this.name, function)
+
+    def :+[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
+      NamedCompoFun(newName, (functions :+ function))
+
+    def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
+      :+(this.name, function)
+
+    def ++[X <: A, Y >: B](newName: String, that: CompoFun[X, Y]): CompoFun[X, Y] =
+      NamedCompoFun(newName, this.functions ++ that.functions)
+
+    def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
+      ++(this.name, that)
+
+  }
+
+  /**
    * Companion for `CompoFun`
    */
   object CompoFun {
 
     def apply[A, B](functions: Seq[Fun1[A, B]]): CompoFun[A, B] =
-      Nameless(functions)
+      NamelessCompoFun(functions)
 
     def apply[A, B](functionsMap: Map[String, Fun[A, B]]): CompoFun[A, B] =
-      Nameless(functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
+      NamelessCompoFun(functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
     def apply[A, B](name: String, function: Fun[A, B]): CompoFun[A, B] =
-      Named(name, Seq(function))
+      NamedCompoFun[A, B](name, Seq(function))
 
     def apply[A, B](name: String, functions: Funs[A, B]): CompoFun[A, B] =
-      Named[A, B](name, functions)
+      NamedCompoFun[A, B](name, functions)
 
     def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]]): CompoFun[A, B] =
-      Named(name, functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
+      NamedCompoFun(name, functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
-    def apply[A, B](name: String, multiFun: CompoFun[A, B]): CompoFun[A, B] =
-      Named[A, B](name, multiFun.functions)
+    def apply[A, B](compoFun: CompoFun[A, B]): CompoFun[A, B] =
+      NamelessCompoFun[A, B](compoFun.functions)
 
-    /**
-     * This is a nameless CompoFun class
-     */
-    private case class Nameless[-A, +B](val functions: Funs[A, B]) extends CompoFun[A, B] {
+    def apply[A, B](name: String, compoFun: CompoFun[A, B]): CompoFun[A, B] =
+      NamedCompoFun[A, B](name, compoFun.functions)
 
-      def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
-        Nameless((function +: functions))
+  }
 
-      def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
-        Nameless((functions :+ function))
+  /**
+   * Asynchronous companion for `CompoFun`.
+   * Functions are transformed from ( A => B ) to ( A => Future[B] )
+   */
+  object ACompoFun {
 
-      def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
-        Nameless(this.functions ++ that.functions)
+    import scala.concurrent._
+
+    implicit def fun2fun[A, B](f: Fun1[A, B])(implicit ec: ExecutionContext): Fun[A, Future[B]] = f match {
+      case nf: NamedFun[A, B]  => Fun(nf.name, { (input: A) => Future[B](nf(input)) })
+      case f1: Function1[A, B] => Fun { (input: A) => Future[B](f1(input)) }
     }
+    implicit def funs2funs[A, B](fx: Seq[Fun1[A, B]])(implicit ec: ExecutionContext): Seq[Fun[A, Future[B]]] = fx.map(fun2fun(_))
+    implicit def funMap2funMap[A, B](f: Map[String, A => B])(implicit ec: ExecutionContext) =
+      f.map(nf => (nf._1, fun2fun(nf._2)))
 
-    /**
-     * This is a CompoFun class that also has a name
-     */
-    private case class Named[-A, +B](val name: String, val functions: Funs[A, B]) extends CompoFun[A, B] with NamedFun[A, Seq[B]] {
+    def apply[A, B](functions: Seq[Fun1[A, B]])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamelessCompoFun[A, Future[B]](functions)
 
-      def +:[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
-        Named(newName, function +: functions)
+    def apply[A, B](functionsMap: Map[String, Fun[A, B]])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamelessCompoFun[A, Future[B]](functionsMap.foldLeft(Seq[Fun[A, Future[B]]]())((acc, nf) => acc :+ Fun[A, Future[B]](nf._1, nf._2)))
 
-      def +:[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
-        +:(this.name, function)
+    def apply[A, B](name: String, function: Fun[A, B])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamedCompoFun[A, Future[B]](name, Seq(function))
 
-      def :+[X <: A, Y >: B](newName: String, function: Fun[X, Y]): CompoFun[X, Y] =
-        Named(newName, (functions :+ function))
+    def apply[A, B](name: String, functions: Funs[A, B])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamedCompoFun[A, Future[B]](name, functions)
 
-      def :+[X <: A, Y >: B](function: Fun[X, Y]): CompoFun[X, Y] =
-        :+(this.name, function)
+    def apply[A, B](name: String, functionsMap: Map[String, Fun[A, B]])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamedCompoFun[A, Future[B]](name, functionsMap.foldLeft(Seq[Fun[A, B]]())((acc, tup) => acc :+ Fun(tup._1, tup._2)))
 
-      def ++[X <: A, Y >: B](newName: String, that: CompoFun[X, Y]): CompoFun[X, Y] =
-        Named(newName, this.functions ++ that.functions)
+    def apply[A, B](compoFun: CompoFun[A, B])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamelessCompoFun[A, Future[B]](compoFun.functions)
 
-      def ++[X <: A, Y >: B](that: CompoFun[X, Y]): CompoFun[X, Y] =
-        ++(this.name, that)
-
-    }
+    def apply[A, B](name: String, compoFun: CompoFun[A, B])(implicit ec: ExecutionContext): CompoFun[A, Future[B]] =
+      NamedCompoFun[A, Future[B]](name, compoFun.functions)
 
   }
 

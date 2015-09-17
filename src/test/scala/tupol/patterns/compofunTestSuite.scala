@@ -431,27 +431,52 @@ class compofunTestSuite extends FunSuite {
 
     }
 
-    //    case class Product(name: String, specifications: Map[String, String])
-    //    case class Price(value: Double, currency: String)
-    //
-    //    def getPriceFromAmazon_COM(product: Product): Price = ???
-    //    def getPriceFromAmazon_UK(product: Product): Price = ???
-    //    def getPriceFromAmazon_DE(product: Product): Price = ???
-    //    def getPriceFromEBay(product: Product): Price = ???
-    //    def getPriceFromAlibaba(product: Product): Price = ???
-    //
-    //    def getAmazonPrices = CompoFun(List(Fun("amazon.com", getPriceFromAmazon_COM),
-    //      Fun("amazon.uk", getPriceFromAmazon_UK),
-    //      Fun("amazon.de", getPriceFromAmazon_DE)))
-    //
-    //    def getOffersMainStores = getAmazonPrices ++ CompoFun(List(Fun("ebay", getPriceFromEBay),
-    //      Fun("alibaba", getPriceFromAlibaba)))
-    //
-    //    val interestingProduct = Product("Programming in Scala", Map("author" -> "Martin Odersky and Lex Spoon", "type" -> "Paperback"))
-    //
-    //    val amazonPrices = getAmazonPrices(interestingProduct)
-    //    val mainStorePrices = getOffersMainStores.applyToMap(interestingProduct)
-
   }
 
+  test("ACompoFun instance.apply(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0, 0.5)
+
+      val complexFun = ACompoFun(funMap)
+      def testComplexFun(in: Operands) = complexFun.apply(in)
+
+      val actual = testComplexFun(input).map { x => Await.result(x, 1 second) }
+      assert(actual === expect)
+    }
+  }
+
+  test("ACompoFun instance.applyToMap(input)") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
+
+      val scomplexFun = CompoFun(funMap)
+      val complexFun = ACompoFun(scomplexFun)
+
+      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+
+      val actual = testComplexFunMap(input).map { case (n, x) => (n, Await.result(x, 1 second)) }
+      assert(actual === expect)
+      assert(complexFun.getNames === expect.keys.toSeq)
+    }
+  }
+
+  test("ACompoFun ++") {
+    new TestSimpleFunctions {
+
+      val input = (1, 2)
+      val expect = List(3.0, -1.0, 2.0)
+
+      val mfun11 = ACompoFun(List[CxFun](add, sub))
+      val mfun12 = ACompoFun(List[CxFun](mul))
+
+      val mfun = mfun11 ++ mfun12
+
+      val actual = mfun(input).map { x => Await.result(x, 1 second) }
+      assert(actual === expect)
+    }
+  }
 }
