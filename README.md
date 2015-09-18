@@ -18,6 +18,20 @@ The component is a <code>Fun</code> object, the composite is a <code>CompoFun</c
 
 One can think of it as a a list of inputs of the same type that need to be transformed into a different list of outputs of the same or a different type.
 
+<code>CompoFun</code> itself is an extension of <code>Function1</code>, meaning that one can call the <code>CompoFun</code> instances same as any other function. 
+For example:
+<code>
+
+  // myCompoFun is a function
+  
+  val myCompoFun = CompoFun(List(add, sub)) 
+  
+  // myCompoFun is called with the same syntactic sugar as any other function; myCompoFun(input) is the same as myCompoFun.apply(input)
+  
+  val result = myCompoFun(input) 
+
+</code>
+
 Normally, and probably in most of the cases one will build a class or a data structure that will hold the result of the complex computations. In my case I decided that I want more flexibility and I want to build different 'processors' with complex computations, producing different results without being bound to define a different structure for each result type.
 
 By default the <code>CompoFun</code> is synchronous, so the functions are executed in the order of the sequence.
@@ -34,7 +48,7 @@ In essence, the <code>CompoFun</code> is a function of <code>A => Seq[B]</code> 
 
 <h4>Recommendations</h4>
 <ul>
-<li>Use case classes for the input parameter instead of tuples. It adds a little overhead, but in the case of this pattern it makes sense, as everything is bult on top of <code>Function1</code>.</li>
+<li>Use case classes for the input parameter instead of tuples. It adds a little overhead, but in the case of this pattern it makes sense, as everything is buislt on top of <code>Function1</code>.</li>
 <li>If possible it is better to use a specific return type, e.g. Seq[String] or Seq[Specific_Class] rather than Seq[Any].</li>
 <li>If the library of CompoFuns is growing it is better to use named functions: <code>Fun(name, body)</code>.
 </ul>

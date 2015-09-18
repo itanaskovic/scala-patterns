@@ -1,17 +1,13 @@
-package tupol.patterns
+package tupol.patterns.compofun
 
+import scala.language.postfixOps
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import scala.language.postfixOps
-
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits._
-import scala.async.Async.{ async, await }
 import scala.util.{ Try, Success, Failure }
-
 import tupol.patterns.compofun._
 
 /**
@@ -21,7 +17,7 @@ import tupol.patterns.compofun._
  */
 
 @RunWith(classOf[JUnitRunner])
-class compofunTestSuite extends FunSuite {
+class CompoFunTestSuite extends FunSuite {
 
   type Operands = (Int, Int)
   type CxFun = Function1[Operands, Double]
@@ -38,9 +34,9 @@ class compofunTestSuite extends FunSuite {
   }
 
   trait TestSetNoException extends TestSimpleFunctions {
-    val complexFun = CompoFun(funList)
-    def testComplexFun(in: Operands) = complexFun(in)
-    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+    val compoFun = CompoFun(funList)
+    def testComplexFun(in: Operands) = compoFun(in)
+    def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
   }
 
   trait TestSetWithException {
@@ -50,9 +46,9 @@ class compofunTestSuite extends FunSuite {
     def div(in: Operands): Double = throw new Exception
     val funSeq = List[CxFun](add, sub, mul, div)
 
-    val complexFun = CompoFun(funSeq)
-    def testComplexFun(in: Operands) = complexFun.apply(in)
-    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+    val compoFun = CompoFun(funSeq)
+    def testComplexFun(in: Operands) = compoFun.apply(in)
+    def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
   }
 
   trait TestSetWithTry {
@@ -62,9 +58,9 @@ class compofunTestSuite extends FunSuite {
     def div(in: Operands): Try[Double] = Try(if (in._2 == 0) throw new Exception else in._1 / in._2.doubleValue())
     val funSeq = List[Operands => Try[Double]](add, sub, mul, div)
 
-    val complexFun = CompoFun(funSeq)
-    def testComplexFun(in: Operands) = complexFun.apply(in)
-    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+    val compoFun = CompoFun(funSeq)
+    def testComplexFun(in: Operands) = compoFun.apply(in)
+    def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
   }
 
   trait TestSetWithFutures {
@@ -74,9 +70,9 @@ class compofunTestSuite extends FunSuite {
     def div(in: Operands): Future[Double] = Future { Thread.sleep(200); in._1 / in._2.doubleValue() }
     val funSeq = List[Operands => Future[Double]](add, sub, mul, div)
 
-    val complexFun = CompoFun(funSeq)
-    def testComplexFun(in: Operands) = complexFun.apply(in)
-    def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+    val compoFun = CompoFun(funSeq)
+    def testComplexFun(in: Operands) = compoFun.apply(in)
+    def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
 
   }
 
@@ -180,7 +176,6 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFun(input).map { case Success(x) => x; case Failure(e) => None }
       assert(actual === expect)
-
     }
   }
 
@@ -192,7 +187,6 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFunMap(input).map { case (n, Success(x)) => (n, x); case (n, Failure(e)) => (n, None) }
       assert(actual === expect)
-
     }
   }
 
@@ -204,7 +198,6 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFun(input).map { case Success(x) => x; case Failure(e) => None }
       assert(actual === expect)
-
     }
   }
 
@@ -216,7 +209,6 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFunMap(input).map { case (n, Success(x)) => (n, x); case (n, Failure(e)) => (n, None) }
       assert(actual === expect)
-
     }
   }
 
@@ -228,7 +220,6 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFun(input).map { x => Await.result(x, 1 second) }
       assert(actual === expect)
-
     }
   }
 
@@ -240,8 +231,7 @@ class compofunTestSuite extends FunSuite {
 
       val actual = testComplexFunMap(input).map { case (n, x) => (n, Await.result(x, 1 second)) }
       assert(actual === expect)
-      assert(complexFun.getNames === expect.keys.toSeq)
-
+      assert(compoFun.getNames === expect.keys.toSeq)
     }
   }
 
@@ -251,8 +241,8 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val complexFun = CompoFun(funMap)
-      def testComplexFunMap(in: Operands) = complexFun.apply(in)
+      val compoFun = CompoFun(funMap)
+      def testComplexFunMap(in: Operands) = compoFun.apply(in)
 
       val actual = testComplexFunMap(input)
       assert(actual === expect)
@@ -265,8 +255,8 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
 
-      val complexFun = CompoFun(funMap)
-      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+      val compoFun = CompoFun(funMap)
+      def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
 
       val actual = testComplexFunMap(input)
       assert(actual === expect)
@@ -283,8 +273,8 @@ class compofunTestSuite extends FunSuite {
       val expect2 = List(1.0, 1.0, 0.0, Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val complexFun = CompoFun(funMap)
-      def testComplexFunMap(in: Operands) = complexFun.apply(in)
+      val compoFun = CompoFun(funMap)
+      def testComplexFunMap(in: Operands) = compoFun.apply(in)
 
       val actual = inputs.map(testComplexFunMap(_))
       assert(actual === expect)
@@ -301,40 +291,40 @@ class compofunTestSuite extends FunSuite {
       val expect2 = Map("add" -> 1.0, "sub" -> 1.0, "mul" -> 0.0, "div" -> Double.PositiveInfinity)
       val expect = List(expect1, expect2)
 
-      val complexFun = CompoFun(funMap)
-      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
+      val compoFun = CompoFun(funMap)
+      def testComplexFunMap(in: Operands) = compoFun.applyToMap(in)
 
       val actual = inputs.map(testComplexFunMap(_))
       assert(actual === expect)
-      assert(complexFun.getNames === expect1.keys.toSeq)
+      assert(compoFun.getNames === expect1.keys.toSeq)
     }
   }
 
-  test("CompoFun.Named factory mixed Fun and NFun and instance.apply(input)") {
+  test("CompoFun NamedCompoFun factory mixed named and nameless functions and instance.apply(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0, 0.5)
 
-      val complexFun = CompoFun(List[CxFun](add, sub, Fun("mul", mul), div))
+      val compoFun = CompoFun(List[CxFun](add, sub, Fun("mul", mul), div))
 
-      val actual = complexFun(input)
+      val actual = compoFun(input)
       assert(actual == expect)
-      assert(complexFun.getNames === Seq("Fun$00", "Fun$01", "mul", "Fun$03"))
+      assert(compoFun.getNames === Seq("Fun$00", "Fun$01", "mul", "Fun$03"))
     }
   }
 
-  test("CompoFun.Named factory mixed named and nameless functions and instance.applyToMap(input)") {
+  test("CompoFun NamedCompoFun factory mixed named and nameless functions and instance.applyToMap(input)") {
     new TestSimpleFunctions {
 
       val input = (1, 2)
       val expect = Map("add" -> 3.0, "Fun$01" -> -1.0, "mul" -> 2.0, "Fun$03" -> 0.5)
 
-      val complexFun = CompoFun(List[CxFun](Fun("add", add), sub, Fun("mul", mul), div))
+      val compoFun = CompoFun(List[CxFun](Fun("add", add), sub, Fun("mul", mul), div))
 
-      val actual = complexFun.applyToMap(input)
+      val actual = compoFun.applyToMap(input)
       assert(actual == expect)
-      assert(complexFun.getNames === expect.keys.toSeq)
+      assert(compoFun.getNames === expect.keys.toSeq)
     }
   }
 
@@ -344,11 +334,11 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun1 = CompoFun(List[CxFun](add, sub))
+      val compoFun1 = CompoFun(List[CxFun](add, sub))
 
-      val mfun = mfun1 :+ Fun(mul)
+      val compoFun = compoFun1 :+ Fun(mul)
 
-      assert(mfun(input) == expect)
+      assert(compoFun(input) == expect)
     }
   }
 
@@ -358,11 +348,11 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(2.0, 3.0, -1.0)
 
-      val mfun1 = CompoFun(List[CxFun](add, sub))
+      val compoFun1 = CompoFun(List[CxFun](add, sub))
 
-      val mfun = Fun(mul) +: mfun1
+      val compoFun = Fun(mul) +: compoFun1
 
-      assert(mfun(input) == expect)
+      assert(compoFun(input) == expect)
     }
   }
 
@@ -372,12 +362,12 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun11 = CompoFun(List[CxFun](add, sub))
-      val mfun12 = CompoFun(List[CxFun](mul))
+      val compoFun11 = CompoFun(List[CxFun](add, sub))
+      val compoFun12 = CompoFun(List[CxFun](mul))
 
-      val mfun = mfun11 ++ mfun12
+      val compoFun = compoFun11 ++ compoFun12
 
-      assert(mfun(input) == expect)
+      assert(compoFun(input) == expect)
     }
   }
 
@@ -387,17 +377,17 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(3.0, -1.0, 2.0)
 
-      val mfun11 = CompoFun(List[CxFun](add, sub))
-      val mfun12 = CompoFun(List[CxFun](mul))
+      val compoFun11 = CompoFun(List[CxFun](add, sub))
+      val compoFun12 = CompoFun(List[CxFun](mul))
 
-      val mfun21 = CompoFun(List[CxFun](add))
-      val mfun22 = CompoFun(List[CxFun](sub, mul))
+      val compoFun21 = CompoFun(List[CxFun](add))
+      val compoFun22 = CompoFun(List[CxFun](sub, mul))
 
-      val mfun1 = mfun11 ++ mfun12
-      val mfun2 = mfun21 ++ mfun22
+      val compoFun1 = compoFun11 ++ compoFun12
+      val compoFun2 = compoFun21 ++ compoFun22
 
-      assert(mfun1(input) === mfun2(input))
-      assert(mfun2(input) == expect)
+      assert(compoFun1(input) === compoFun2(input))
+      assert(compoFun2(input) == expect)
     }
   }
 
@@ -407,13 +397,13 @@ class compofunTestSuite extends FunSuite {
       val input = (1, 2)
       val expect = List(List(3.0, -1.0), List(2.0, 0.5))
 
-      val mfun1 = CompoFun(List[CxFun](add, sub))
-      val mfun2 = CompoFun(List[CxFun](mul, div))
+      val compoFun1 = CompoFun(List[CxFun](add, sub))
+      val compoFun2 = CompoFun(List[CxFun](mul, div))
       def rem(in: Operands): Double = in._1 % in._2.doubleValue()
 
-      val complexFun = CompoFun(List(mfun1, mfun2))
+      val compoFun = CompoFun(List(compoFun1, compoFun2))
 
-      val actual = complexFun(input)
+      val actual = compoFun(input)
       assert(actual == expect)
     }
   }
@@ -424,59 +414,11 @@ class compofunTestSuite extends FunSuite {
       val input = Input(1, 2)
       val expect = List("3", -1, 2.0, DivResult(0.5f))
 
-      val complexFun = CompoFun(List[CxFun](add, sub, mul, div))
+      val compoFun = CompoFun(List[CxFun](add, sub, mul, div))
 
-      val actual = complexFun(input)
+      val actual = compoFun(input)
       assert(actual == expect)
-
-    }
-
-  }
-
-  test("ACompoFun instance.apply(input)") {
-    new TestSimpleFunctions {
-
-      val input = (1, 2)
-      val expect = List(3.0, -1.0, 2.0, 0.5)
-
-      val complexFun = ACompoFun(funMap)
-      def testComplexFun(in: Operands) = complexFun.apply(in)
-
-      val actual = testComplexFun(input).map { x => Await.result(x, 1 second) }
-      assert(actual === expect)
     }
   }
 
-  test("ACompoFun instance.applyToMap(input)") {
-    new TestSimpleFunctions {
-
-      val input = (1, 2)
-      val expect = Map("add" -> 3.0, "sub" -> -1.0, "mul" -> 2.0, "div" -> 0.5)
-
-      val scomplexFun = CompoFun(funMap)
-      val complexFun = ACompoFun(scomplexFun)
-
-      def testComplexFunMap(in: Operands) = complexFun.applyToMap(in)
-
-      val actual = testComplexFunMap(input).map { case (n, x) => (n, Await.result(x, 1 second)) }
-      assert(actual === expect)
-      assert(complexFun.getNames === expect.keys.toSeq)
-    }
-  }
-
-  test("ACompoFun ++") {
-    new TestSimpleFunctions {
-
-      val input = (1, 2)
-      val expect = List(3.0, -1.0, 2.0)
-
-      val mfun11 = ACompoFun(List[CxFun](add, sub))
-      val mfun12 = ACompoFun(List[CxFun](mul))
-
-      val mfun = mfun11 ++ mfun12
-
-      val actual = mfun(input).map { x => Await.result(x, 1 second) }
-      assert(actual === expect)
-    }
-  }
 }
