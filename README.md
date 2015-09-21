@@ -1,3 +1,23 @@
+<head>
+<!--
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shCore.js" type="text/javascript"></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shAutoloader.js" type="text/javascript"></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushCss.js" type='text/javascript'></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushJava.js" type='text/javascript'></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushJScript.js" type='text/javascript'></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushSql.js" type='text/javascript'></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushXml.js" type='text/javascript'></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushScala.js" type='text/javascript'></script>
+<link href="http://alexgorbatchev.com/pub/sh/current/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+<link href="http://alexgorbatchev.com/pub/sh/current/scripts/SyntaxHighlighter.css" rel="stylesheet" type="text/css" />
+-->
+<link href="http://alexgorbatchev.com/pub/sh/current/styles/shThemeDefault.css" rel="stylesheet" type="text/css" />
+<link href="http://alexgorbatchev.com/pub/sh/current/scripts/SyntaxHighlighter.css" rel="stylesheet" type="text/css" />
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shCore.js" type="text/javascript"></script>
+<script src="http://alexgorbatchev.com/pub/sh/current/scripts/shBrushScala.js" type='text/javascript'></script>
+</head>
+
+
 <h1>Scala Patterns</h1>
 
 <h2>Scope</h2>
@@ -20,17 +40,16 @@ One can think of it as a a list of inputs of the same type that need to be trans
 
 <code>CompoFun</code> itself is an extension of <code>Function1</code>, meaning that one can call the <code>CompoFun</code> instances same as any other function. 
 For example:
-<code>
 
+<pre class="brush: scala">
   // myCompoFun is a function
-  
   val myCompoFun = CompoFun(List(add, sub)) 
   
-  // myCompoFun is called with the same syntactic sugar as any other function; myCompoFun(input) is the same as myCompoFun.apply(input)
-  
+  // myCompoFun is called with the same syntactic sugar 
+  // as any other function; 
+  // myCompoFun(input) is the same as myCompoFun.apply(input)
   val result = myCompoFun(input) 
-
-</code>
+</pre>
 
 Normally, and probably in most of the cases one will build a class or a data structure that will hold the result of the complex computations. In my case I decided that I want more flexibility and I want to build different 'processors' with complex computations, producing different results without being bound to define a different structure for each result type.
 
@@ -58,7 +77,8 @@ In essence, the <code>CompoFun</code> is a function of <code>A => Seq[B]</code> 
 Let's say that we have a couple of specific functions retrieving  price for a given product from an online store (e.g. Amazon, EBay, Alibaba...) and we would like to retrieve the prices for all of them so that we can display them in a comparison table.
 We can aggregate the functions in a <code>CompoFun</code> structure and just apply this composite function to the given input resulting in a list (or a map) of return values.
 
-<code>
+
+<pre class="brush: scala">
 ...
 
     case class Product(name: String, specifications: Map[String, String])
@@ -82,7 +102,7 @@ We can aggregate the functions in a <code>CompoFun</code> structure and just app
     val amazonPrices = getAmazonPrices(interestingProduct)
     val mainStorePrices = getOffersMainStores.applyToMap(interestingProduct)
 ... 
-</code>
+</pre>
 
 Another sample use case is rendering an XML file into multiple formats, like pdf, html, doc...
 
@@ -100,3 +120,5 @@ Another sample use case is rendering an XML file into multiple formats, like pdf
 <li>Scala Design Patterns: Patterns for Practical Reuse and Design <i>by John Hunt</i></li>
 <li>Design Patterns: Elements of Reusable Object-Oriented Software <i>by Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides</i></li>
 </ul>
+
+
