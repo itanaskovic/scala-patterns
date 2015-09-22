@@ -25,9 +25,11 @@ This small projects serves as a minimal repository of know how how that I gather
 
 There is no clear objective to cover GoF design patterns or the functional design patterns. However, over time, more of my favorite GoFs might end up here.
 
-<h2><a href="#patterns"/>Patterns</h2>
+<a href="#patterns"/>
+<h2>Patterns</h2>
 
-<h3><a href="#multifun"/>Composite Functions</h3>
+<a href="#multifun"/>
+<h3>Composite Functions</h3>
 
 <h4>Description</h4>
 This pattern is built on top of the GoF Composite pattern, but with a twist. The composition is just appending the component results to a sequence of results, preserving the order of the components.
@@ -115,7 +117,9 @@ Another sample use case is rendering an XML file into multiple formats, like pdf
 
 </ul>
 
-<h2><a href="#references"/>References</h2>
+
+<a href="#references"/>
+<h2>References</h2>
 <ul>
 <li>Scala Design Patterns: Patterns for Practical Reuse and Design <i>by John Hunt</i></li>
 <li>Design Patterns: Elements of Reusable Object-Oriented Software <i>by Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides</i></li>
